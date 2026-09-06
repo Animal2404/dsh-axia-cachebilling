@@ -454,6 +454,8 @@ interface HistoryStep {
   m: string
   /** optional 兼容旧快照：stateVersion 8 重放后必然存在，读取处一律 ?? 0，绝不让 schema 校验 fail-loud */
   mi?: number
+  /** optional 同 mi：stateVersion 9 起每步缓存命中金额（元），平均缓存曲线的数据底座 */
+  hc?: number
 }
 
 const historyRecordSchema = z.object({
@@ -465,6 +467,9 @@ const historyRecordSchema = z.object({
       t: z.number().int(),
       s: z.number().int(),
       c: z.number().nonnegative(),
+      /** 落盘口径（v9）：mi/hc 随步落盘（平均缓存曲线读落盘数据）——schema 不声明会被 domain open 的 parse strip 掉 */
+      mi: z.number().nonnegative().optional(),
+      hc: z.number().nonnegative().optional(),
     }),
   ),
   marks: z.record(z.string(), z.string()),
@@ -516,15 +521,18 @@ function nextCall(
   return { t, s, n: (call?.n ?? 0) + 1 }
 }
 
-let curveCache: { version: number; key: string; result: { avg: number[]; sessions: number } } | null =
-  null
+let curveCache: {
+  version: number
+  key: string
+  result: { avg: number[]; avgHit: number[]; sessions: number }
+} | null = null
 
-/** 当前模型键的平均累计曲线：每步取「该步有它的所有会话」的平均增量再累加；x 轴保留到最远样本步（不可截断），无样本步平走；30 天外的会话不参与。结果按（键，落盘版本）缓存。 */
-function averageCurve(key: string): { avg: number[]; sessions: number } {
+/** 当前模型键的平均累计曲线：每步取「该步有它的所有会话」的平均增量再累加；x 轴保留到最远样本步（不可截断），无样本步平走；30 天外的会话不参与。avg=总价口径，avgHit=缓存命中口径（同算法换聚合字段；仅带 hc 数据的步参与平均，缺失步平走不拉低——宁缺毋假，旧快照未重放的会话不出数据）。结果按（键，落盘版本）缓存。 */
+function averageCurve(key: string): { avg: number[]; avgHit: number[]; sessions: number } {
   if (curveCache !== null && curveCache.version === historyVersion && curveCache.key === key) {
     return curveCache.result
   }
-  const empty = { avg: [] as number[], sessions: 0 }
+  const empty = { avg: [] as number[], avgHit: [] as number[], sessions: 0 }
   if (historyTable === null) {
     curveCache = { version: historyVersion, key, result: empty }
     return empty
@@ -532,7 +540,7 @@ function averageCurve(key: string): { avg: number[]; sessions: number } {
   const now = Date.now()
   let maxN = 0
   let sessions = 0
-  const buckets = new Map<number, { sum: number; count: number }>()
+  const buckets = new Map<number, { sum: number; count: number; hitSum: number; hitCount: number }>()
   for (const [recordId, record] of historyTable.entries()) {
     if (!isWindowSessionId(baseSessionId(recordId))) continue
     if (now - record.updatedAt > RETENTION_MS) continue
@@ -544,9 +552,13 @@ function averageCurve(key: string): { avg: number[]; sessions: number } {
       if (current !== key) continue
       hit = true
       if (step.n > maxN) maxN = step.n
-      const bucket = buckets.get(step.n) ?? { sum: 0, count: 0 }
+      const bucket = buckets.get(step.n) ?? { sum: 0, count: 0, hitSum: 0, hitCount: 0 }
       bucket.sum += step.c
       bucket.count += 1
+      if (step.hc !== undefined) {
+        bucket.hitSum += step.hc
+        bucket.hitCount += 1
+      }
       buckets.set(step.n, bucket)
     }
     if (hit) sessions += 1
@@ -554,23 +566,32 @@ function averageCurve(key: string): { avg: number[]; sessions: number } {
   let result = empty
   if (maxN > 0) {
     const avg: number[] = []
+    const avgHit: number[] = []
     let cum = 0
+    let cumHit = 0
+    let anyHit = false
     for (let k = 1; k <= maxN; k++) {
       const bucket = buckets.get(k)
       if (bucket !== undefined) cum += bucket.sum / bucket.count
+      if (bucket !== undefined && bucket.hitCount > 0) {
+        cumHit += bucket.hitSum / bucket.hitCount
+        anyHit = true
+      }
       avg.push(round9(cum))
+      avgHit.push(round9(cumHit))
     }
-    result = { avg, sessions }
+    result = { avg, avgHit: anyHit ? avgHit : [], sessions }
   }
   curveCache = { version: historyVersion, key, result }
   return result
 }
 
-/** 曲线块视图数据：key=当前模型键，sessions=平均参与会话数，avg=平均累计（步 1..N 稠密），cur=本会话实际累计 [[n, 累计]...]（全部精确步，含换模型前的步——钱包真实轨迹）。 */
+/** 曲线块视图数据：key=当前模型键，sessions=平均参与会话数，avg=平均累计（步 1..N 稠密），avgHit=平均缓存累计（同算法同 x 轴，仅带 hc 数据的步参与；空数组=无数据不画），cur=本会话实际累计 [[n, 累计]...]（全部精确步，含换模型前的步——钱包真实轨迹）。 */
 interface CurveView {
   key: string
   sessions: number
   avg: number[]
+  avgHit: number[]
   cur: Array<[number, number]>
 }
 
@@ -578,14 +599,14 @@ function buildCurve(state: ProjectionState, tier: Tier | null, matched: boolean)
   const s = state.last
   if (s === null || !matched || s.provider === null || s.model === null) return null
   const key = historyKey(s.provider, s.model, tier)
-  const { avg, sessions } = averageCurve(key)
+  const { avg, avgHit, sessions } = averageCurve(key)
   let cum = 0
   const cur = state.history.map((e): [number, number] => {
     cum = round9(cum + e.c)
     return [e.n, cum]
   })
   if (avg.length === 0 && cur.length === 0) return null
-  return { key, sessions, avg, cur }
+  return { key, sessions, avg, avgHit, cur }
 }
 
 /** 历史落盘：投影 state.history 是唯一事实（重放可重建），这里只做搬运——usage 事件防抖 2s，turn/end 与会话关闭即写，写失败仅警告。
@@ -612,7 +633,8 @@ function installHistoryRecorder(ctx: any, table: KvTable<string, HistoryRecord>)
         const record: HistoryRecord = {
           createdAt,
           updatedAt: Date.now(),
-          steps: state.history.map((e) => ({ n: e.n, t: e.t, s: e.s, c: e.c })),
+          // 白名单必须带 mi/hc：这两列是消耗比较与平均缓存曲线的落盘数据底座（cmp-21 曾漏改此处，历史域落盘全被剥成裸四列）
+          steps: state.history.map(({ n, t, s, c, mi, hc }) => ({ n, t, s, c, mi, hc })),
           marks: deriveMarks(state.history),
           gen,
         }
@@ -636,7 +658,8 @@ function installHistoryRecorder(ctx: any, table: KvTable<string, HistoryRecord>)
         const archiveRecord: HistoryRecord = {
           createdAt,
           updatedAt: archive.updatedAt,
-          steps: archive.steps.map(({ n, t, s, c }) => ({ n, t, s, c })),
+          // 归档白名单：mi 剥离（读代码不读归档）；hc 保留（平均缓存跨代统计，与总价同权）
+          steps: archive.steps.map(({ n, t, s, c, hc }) => ({ n, t, s, c, hc })),
           marks: { ...archive.marks },
           gen: archive.gen,
         }
@@ -742,7 +765,8 @@ async function migrateLegacyRecords(ctx: any, table: KvTable<string, HistoryReco
         await table.put(archiveId, {
           createdAt: record.createdAt,
           updatedAt: state.prevGen.updatedAt,
-          steps: state.prevGen.steps.map(({ n, t, s, c }) => ({ n, t, s, c })),
+          // 同归档白名单：mi 剥 hc 留
+          steps: state.prevGen.steps.map(({ n, t, s, c, hc }) => ({ n, t, s, c, hc })),
           marks: state.prevGen.marks,
           gen: state.prevGen.gen,
         })
@@ -752,7 +776,8 @@ async function migrateLegacyRecords(ctx: any, table: KvTable<string, HistoryReco
         await table.put(currentId, {
           createdAt: record.createdAt,
           updatedAt: Date.now(),
-          steps: state.history.map((e) => ({ n: e.n, t: e.t, s: e.s, c: e.c })),
+          // 重放写回：mi/hc 必须保留（这是旧记录补算缓存金额的正式路径之一）
+          steps: state.history.map(({ n, t, s, c, mi, hc }) => ({ n, t, s, c, mi, hc })),
           marks: deriveMarks(state.history),
           gen: state.gen,
         })
@@ -817,8 +842,8 @@ export function apply(ctx: any, _config: any): void {
     // 没有 wire 即 host-only 单元，状态不进客户端快照，useProjection 永远拿不到值。
     projectionCtx.sessionProjections.register({
       key: 'cacheBilling',
-      // v8：history/prevGen 步目补 mi（该步缓存未命中金额，消耗比较块「读代码」的数据底座）——旧持久化行作废重放，重放后所有步自动补上
-      stateVersion: 8,
+      // v9：history/prevGen 步目补 hc（该步缓存命中金额，平均缓存曲线的数据底座）——旧持久化行作废重放，重放后所有步自动补上
+      stateVersion: 9,
       stateSchema: z.object({
         provider: z.string().nullable(),
         model: z.string().nullable(),
@@ -873,6 +898,7 @@ export function apply(ctx: any, _config: any): void {
             c: z.number().nonnegative(),
             m: z.string().min(1),
             mi: z.number().nonnegative().optional(),
+            hc: z.number().nonnegative().optional(),
           }),
         ),
         gen: z.number().int().nonnegative(),
@@ -887,6 +913,7 @@ export function apply(ctx: any, _config: any): void {
                 s: z.number().int(),
                 c: z.number().nonnegative(),
                 mi: z.number().nonnegative().optional(),
+                hc: z.number().nonnegative().optional(),
               }),
             ),
             marks: z.record(z.string(), z.string()),
@@ -947,7 +974,7 @@ export function apply(ctx: any, _config: any): void {
                 ? {
                     gen: state.gen,
                     updatedAt: typeof event.time === 'number' ? event.time : Date.now(),
-                    steps: state.history.map(({ n, t, s, c, mi }) => ({ n, t, s, c, mi })),
+                    steps: state.history.map(({ n, t, s, c, mi, hc }) => ({ n, t, s, c, mi, hc })),
                     marks: deriveMarks(state.history),
                   }
                 : state.prevGen,
@@ -1027,6 +1054,7 @@ export function apply(ctx: any, _config: any): void {
                 c: round9(billed.hit + billed.miss + billed.output),
                 m: historyKey(sample.provider, sample.model, billed.tier),
                 mi: billed.miss,
+                hc: billed.hit,
               })
             : state.history
         if (prev !== null && prev.turn === turn && prev.step === step) {
@@ -1181,6 +1209,7 @@ export function apply(ctx: any, _config: any): void {
               key: z.string(),
               sessions: z.number().int().nonnegative(),
               avg: z.array(z.number()),
+              avgHit: z.array(z.number()),
               cur: z.array(z.tuple([z.number().int(), z.number()])),
             })
             .nullable(),

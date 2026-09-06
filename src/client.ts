@@ -34,9 +34,11 @@ const CSS = `
 .meowcb_chartside{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .meowcb_svg{display:block;width:100%;height:auto}
 .meowcb_axis{stroke:var(--dsw-alias-border-l3);stroke-width:1}
-.meowcb_avg{stroke:#60a5fa;stroke-width:1.5;fill:none}
+.meowcb_avgarea{fill:#60a5fa;fill-opacity:.2;stroke:none}
+.meowcb_avghitarea{fill:#bef264;fill-opacity:.1;stroke:none}
+.meowcb_avgblock{fill:#60a5fa;fill-opacity:.2}
+.meowcb_avghitblock{fill:#bef264;fill-opacity:.1}
 .meowcb_cur{stroke:#f59e0b;stroke-width:1.5;fill:none}
-.meowcb_dotavg{fill:#60a5fa}
 .meowcb_dotcur{fill:#f59e0b}
 .meowcb_axlabel{fill:var(--dsw-alias-label-caption);font-size:9px}
 .meowcb_cmplab{color:var(--dsw-alias-label-secondary);white-space:nowrap;display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:10px;line-height:14px}
@@ -115,11 +117,12 @@ interface CacheBillingView {
   sessionCacheHitCost?: number
   sessionMissCost?: number
   sessionOutputCost?: number
-  /** 曲线块（第二块）：null = 当前模型未命中价目表（估算步不入曲线） */
+  /** 曲线块（第二块）：null = 当前模型未命中价目表（估算步不入曲线）；avgHit=平均缓存累计（空数组=无 hc 数据不画） */
   curve?: {
     key: string
     sessions: number
     avg: number[]
+    avgHit: number[]
     cur: Array<[number, number]>
   } | null
   /** 消耗比较块（第三块）：null = 尚无用量样本 */
@@ -215,26 +218,26 @@ function renderBill(bill: HTMLElement): void {
     cell('meowcb_v', formatAmount(miss))
     cell('meowcb_v', formatAmount(out))
   }
-  tableRow('一步', cost + missCost + outputCost, cost, missCost, outputCost)
+  tableRow('当前步', cost + missCost + outputCost, cost, missCost, outputCost)
 
-  // 一轮：turn 内多步累计
+  // 当前轮：turn 内多步累计
   const turnHit = Number.isFinite(view.turnHitCost) ? (view.turnHitCost as number) : 0
   const turnMiss = Number.isFinite(view.turnMissCost) ? (view.turnMissCost as number) : 0
   const turnOut = Number.isFinite(view.turnOutputCost) ? (view.turnOutputCost as number) : 0
-  tableRow('一轮', turnHit + turnMiss + turnOut, turnHit, turnMiss, turnOut)
+  tableRow('当前轮', turnHit + turnMiss + turnOut, turnHit, turnMiss, turnOut)
 
-  // 会话累计
+  // 本会话累计
   const sessionHit = Number.isFinite(view.sessionCacheHitCost) ? (view.sessionCacheHitCost as number) : 0
   const sessionMiss = Number.isFinite(view.sessionMissCost) ? (view.sessionMissCost as number) : 0
   const sessionOut = Number.isFinite(view.sessionOutputCost) ? (view.sessionOutputCost as number) : 0
-  tableRow('会话', sessionHit + sessionMiss + sessionOut, sessionHit, sessionMiss, sessionOut)
+  tableRow('本会话', sessionHit + sessionMiss + sessionOut, sessionHit, sessionMiss, sessionOut)
   put(grid)
 
   // 块 2+3 合并布局：标题横贯顶部（provider/model，峰谷带括号），左=竖长方形曲线（图例画图内），右=「消耗比较」+「缓存」两节——失效统计从表下小字搬入右列，底部灰字删除（猫猫 08-31 定稿）。
   renderChart(doc, put, view)
 }
 
-/** 块 2+3 合并布局（猫猫 2026-08-31 定稿）：标题横贯顶部「对于 provider/model」（峰谷带括号：官方梁文峰/梁文谷、其他峰价/谷价；一口价不加括号），底部灰字删除。左半边竖长方形手写 SVG——图例（─ 平均 / ─ 本会话）竖排画在图内左上，轴标签紧凑贴边；右半边两节：「■ 消耗比较」三数 + 「■ 缓存」失效统计（完全失效次数；缓存时间估算/现在失效可能先占位留空）。curve 与 compare 任一存在即渲染，估算场景 curve 为 null 只出右列。 */
+/** 块 2+3 合并布局（猫猫 2026-08-31 定稿，cmp-24 面积图）：标题横贯顶部「对于 provider/model」（峰谷带括号：官方梁文峰/梁文谷、其他峰价/谷价；一口价不加括号），底部灰字删除。左半边竖长方形手写 SVG——两条平均值画曲线下面积（平均（总）蓝/平均缓存绿，半透明填色无描边，缓存嵌套透色可辨），本会话（总）保持橙色描边线；图例（蓝块/橙线/绿块）竖排图内左上，轴标签紧凑贴边；右半边两节：「■ 消耗比较」三数 + 「■ 缓存」失效统计（完全失效次数；缓存时间估算/现在失效可能占位「暂未实现」待口径）。curve 与 compare 任一存在即渲染，估算场景 curve 为 null 只出右列。 */
 function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheBillingView): void {
   const curve = view.curve
   const cmp = view.compare
@@ -270,8 +273,11 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     const B = 10
     const lastCurN = curve.cur.length > 0 ? curve.cur[curve.cur.length - 1][0] : 0
     const xmax = Math.max(curve.avg.length, lastCurN, 1)
+    // avgHit 防御解构：旧投影快照（stateVersion 9 前生成）无此字段
+    const avgHit = curve.avgHit ?? []
     let ymax = 0
     for (const v of curve.avg) if (v > ymax) ymax = v
+    for (const v of avgHit) if (v > ymax) ymax = v
     for (const [, v] of curve.cur) if (v > ymax) ymax = v
     if (ymax <= 0) ymax = 1
     const x = (n: number): number => L + ((n - 1) / Math.max(xmax - 1, 1)) * (W - L - R)
@@ -286,22 +292,33 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     const svg = el('svg', 'meowcb_svg')
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`)
 
-    // 图例浮在图内左上角（二次增长曲线左上恒空，正好放）——猫猫：平均后面不要写几轮
-    const legendLine = (cls: string, cy: number, text: string): void => {
-      const line = el('line', cls)
-      line.setAttribute('x1', '6')
-      line.setAttribute('y1', String(cy))
-      line.setAttribute('x2', '14')
-      line.setAttribute('y2', String(cy))
-      svg.appendChild(line)
+    // 图例浮在图内左上角（二次增长曲线左上恒空，正好放）——面积图配色块样例，本会话线配线段样例（猫猫 09-02 面积图定稿）
+    const legendSwatch = (kind: 'block' | 'line', cls: string, cy: number, text: string): void => {
+      if (kind === 'block') {
+        const block = doc.createElementNS(NS, 'rect')
+        block.setAttribute('x', '6')
+        block.setAttribute('y', String(cy - 4))
+        block.setAttribute('width', '8')
+        block.setAttribute('height', '8')
+        block.setAttribute('class', cls)
+        svg.appendChild(block)
+      } else {
+        const line = el('line', cls)
+        line.setAttribute('x1', '6')
+        line.setAttribute('y1', String(cy))
+        line.setAttribute('x2', '14')
+        line.setAttribute('y2', String(cy))
+        svg.appendChild(line)
+      }
       const label = el('text', 'meowcb_axlabel')
       label.setAttribute('x', '17')
       label.setAttribute('y', String(cy + 3))
       label.textContent = text
       svg.appendChild(label)
     }
-    legendLine('meowcb_avg', 24, '平均')
-    legendLine('meowcb_cur', 35, '本会话')
+    legendSwatch('block', 'meowcb_avgblock', 24, '平均（总）')
+    legendSwatch('block', 'meowcb_avghitblock', 35, '平均缓存')
+    legendSwatch('line', 'meowcb_cur', 46, '本会话（总）')
 
     // L 形坐标轴：左纵 + 下横，紧凑贴边
     const axisY = el('line', 'meowcb_axis')
@@ -317,16 +334,26 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     svg.appendChild(axisY)
     svg.appendChild(axisX)
 
-    // 平均累计曲线（步 1..N 稠密）
+    // 平均累计面积（步 1..N 稠密）——曲线下填色、不描边（猫猫 09-02 面积图定稿）
     if (curve.avg.length > 0) {
-      const line = el('polyline', 'meowcb_avg')
-      line.setAttribute('points', curve.avg.map((v, i) => `${x(i + 1)},${y(v)}`).join(' '))
-      svg.appendChild(line)
-      const dot = el('circle', 'meowcb_dotavg')
-      dot.setAttribute('cx', String(x(curve.avg.length)))
-      dot.setAttribute('cy', String(y(curve.avg[curve.avg.length - 1])))
-      dot.setAttribute('r', '2')
-      svg.appendChild(dot)
+      const area = el('polygon', 'meowcb_avgarea')
+      const yBase = String(H - B)
+      area.setAttribute(
+        'points',
+        `${x(1)},${yBase} ${curve.avg.map((v, i) => `${x(i + 1)},${y(v)}`).join(' ')} ${x(curve.avg.length)},${yBase}`,
+      )
+      svg.appendChild(area)
+    }
+
+    // 平均缓存面积（同算法同 x 轴，仅带 hc 数据的步参与；空数组=无数据不画）——叠在总面积上，嵌套关系透色可辨
+    if (avgHit.length > 0) {
+      const area = el('polygon', 'meowcb_avghitarea')
+      const yBase = String(H - B)
+      area.setAttribute(
+        'points',
+        `${x(1)},${yBase} ${avgHit.map((v, i) => `${x(i + 1)},${y(v)}`).join(' ')} ${x(avgHit.length)},${yBase}`,
+      )
+      svg.appendChild(area)
     }
 
     // 本会话实际累计曲线（全部精确步，x 落在真实调用序号上，混模型也如实）
@@ -518,7 +545,7 @@ function CacheDataHook(props: any) {
 
   return React.createElement('span', {
     'data-meow-cachebilling': 'hook',
-    'data-meowcb-version': 'cmp-19',
+    'data-meowcb-version': 'cmp-29',
     style: { display: 'none' },
   })
 }
@@ -528,7 +555,7 @@ export const inject = ['slots', 'connection', 'remote', 'settingsScope', 'settin
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function apply(ctx: any): void {
   // 版本标记：排障用，每次改动 bump——rev 滞后时看控制台标记就知道浏览器跑的是哪一版
-  console.log('[meow-cachebilling] client bundle: cmp-19')
+  console.log('[meow-cachebilling] client bundle: cmp-29')
   if (
     typeof document !== 'undefined' &&
     document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null
