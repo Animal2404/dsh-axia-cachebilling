@@ -102,7 +102,10 @@ export function lookupCatalog(
   }
   const pool = exact.length > 0 ? exact : loose
   if (pool.length === 0) return null
-  const distinct = new Set(pool.map((x) => x.entry.model))
-  if (pool.some((x) => x.providerMatched) || distinct.size === 1) return pool[0]
-  return null
+  // 供应商命中优先。
+  if (pool.some((x) => x.providerMatched)) return pool[0]
+  // 供应商没命中时只在「候选其实就是同一条目录」时才敢用（别名写法不同）；多家供应商都有这个模型名就不填，
+  // 宁可让用户手填，也不能把别家的价格冒充成本家的（kimi-k3 这种多家都卖的模型最容易踩）。
+  const distinct = new Set(pool.map((x) => x.entry))
+  return distinct.size === 1 ? pool[0] : null
 }
