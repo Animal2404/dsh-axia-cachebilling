@@ -101,6 +101,8 @@ const whenGroupSchema = z.object({
 })
 const entrySchema = z.object({
   model: z.string().min(1),
+  /** 人看的模型版本名（如 DeepSeek-V4.1-Flash），只用于设置页显示，不参与匹配 */
+  label: z.string().min(1).optional(),
   provider: z.string().min(1).optional(),
   timezone: z.string().min(1).optional(),
   peak: z.object({ ...pricesShape, when: whenGroupSchema.array().min(1) }).optional(),
@@ -111,11 +113,13 @@ const entrySchema = z.object({
 type RawEntry = z.infer<typeof entrySchema>
 const ratesFileSchema = z.object({ models: z.array(entrySchema) })
 
-/** 内置默认价目表（rates.yml 缺失/损坏时的兜底）：DeepSeek 官方 2026-08-17 峰谷刊例，周六日全天谷。 */
+/** 内置默认价目表（rates.yml 缺失/损坏时的兜底）：DeepSeek 官方峰谷刊例，周六日全天谷。 */
 const RATE_DEFAULTS_RAW = {
   models: [
     {
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-flash',
+      label: 'DeepSeek-V4.1-Flash',
+      provider: 'deepseek-official',
       timezone: 'Asia/Shanghai',
       peak: {
         hit: 0.1,
@@ -124,30 +128,6 @@ const RATE_DEFAULTS_RAW = {
         when: [{ days: ['mon', 'tue', 'wed', 'thu', 'fri'], ranges: ['09:00-12:00', '14:00-18:00'] }],
       },
       valley: { hit: 0.05, miss: 1.5, output: 4.5 },
-      cacheSaving: null,
-    },
-    {
-      model: 'deepseek-v4-flash-vision-exp',
-      timezone: 'Asia/Shanghai',
-      peak: {
-        hit: 0.1,
-        miss: 3,
-        output: 9,
-        when: [{ days: ['mon', 'tue', 'wed', 'thu', 'fri'], ranges: ['09:00-12:00', '14:00-18:00'] }],
-      },
-      valley: { hit: 0.05, miss: 1.5, output: 4.5 },
-      cacheSaving: null,
-    },
-    {
-      model: 'deepseek-v4-pro',
-      timezone: 'Asia/Shanghai',
-      peak: {
-        hit: 0.3,
-        miss: 9,
-        output: 27,
-        when: [{ days: ['mon', 'tue', 'wed', 'thu', 'fri'], ranges: ['09:00-12:00', '14:00-18:00'] }],
-      },
-      valley: { hit: 0.15, miss: 4.5, output: 13.5 },
       cacheSaving: null,
     },
   ],
@@ -227,7 +207,7 @@ const DEFAULT_ENTRIES: RateEntry[] = ratesFileSchema
     return r.entry
   })
 /** 未知模型的估算兜底：永远用内置 flash 表，不随用户 rates.yml 增删而消失。 */
-const FALLBACK_ENTRY = DEFAULT_ENTRIES.find((e) => e.model === 'deepseek-v4-flash')!
+const FALLBACK_ENTRY = DEFAULT_ENTRIES.find((e) => e.model === 'deepseek-flash')!
 
 /** 条目身份键："provider|model"（provider 缺省记 "*"）。预填层与用户层按它对齐覆盖关系。 */
 const entryKey = (e: { model: string; provider?: string | null }): string =>

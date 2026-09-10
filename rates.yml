@@ -2,6 +2,7 @@
 #
 # 手填指南：
 #   model       写 API 实际返回的模型名（匹配=先精确、再后缀，大小写不敏感）
+#   label       可选：人看的模型版本名（如 DeepSeek-V4.1-Flash），只在设置页显示，不参与匹配
 #   provider    可选：填了则只对该路由生效（与 API 返回的 provider 串一致）；不填 = 该模型所有路由通用
 #   timezone    计费方账单时区（IANA 名，如 Asia/Shanghai / America/New_York），缺省 Asia/Shanghai
 #   计价形态三选一：
@@ -13,9 +14,13 @@
 #   cacheSaving 服务器缓存保留时长，实测后回填，现在没有逻辑
 #
 # 改完重启 dsh web 生效。条目非法会被跳过（控制台有警告），文件整体损坏则回退内置默认表——不会弄崩 DSH。
+#
+# 预填只保留 DeepSeek 官方在售的 V4.1 Flash 一条；其它供应商 / 模型请到设置页「喵缓存账单」里
+# 用下拉挑供应商与模型自己加（那条走用户层，不会被版本更新覆盖）。
 
 models:
-  - model: deepseek-v4-flash
+  - model: deepseek-flash
+    label: DeepSeek-V4.1-Flash
     provider: deepseek-official
     timezone: Asia/Shanghai
     peak:
@@ -29,66 +34,4 @@ models:
       hit: 0.05
       miss: 1.5
       output: 4.5
-    cacheSaving: null
-
-  - model: deepseek-v4-flash-vision-exp
-    provider: deepseek-official
-    timezone: Asia/Shanghai
-    peak:
-      hit: 0.1
-      miss: 3
-      output: 9
-      when:
-        - days: [mon, tue, wed, thu, fri]
-          ranges: ["09:00-12:00", "14:00-18:00"]
-    valley:
-      hit: 0.05
-      miss: 1.5
-      output: 4.5
-    cacheSaving: null
-
-  - model: deepseek-v4-pro
-    provider: deepseek-official
-    timezone: Asia/Shanghai
-    peak:
-      hit: 0.3
-      miss: 9
-      output: 27
-      when:
-        - days: [mon, tue, wed, thu, fri]
-          ranges: ["09:00-12:00", "14:00-18:00"]
-    valley:
-      hit: 0.15
-      miss: 4.5
-      output: 13.5
-    cacheSaving: null
-
-  # ── 智谱 GLM（2026-08-30 刊例，bigmodel.cn/pricing；一口价，无峰谷）──
-  # glm-5.3 / glm-5.2：缓存命中限时免费（原价 2 元/百万），恢复收费后把 hit 改回 2
-  - model: glm-5.3
-    provider: zai-coding-cn
-    timezone: Asia/Shanghai
-    const:
-      hit: 0
-      miss: 8
-      output: 28
-    cacheSaving: null
-
-  - model: glm-5.2
-    provider: zai-coding-cn
-    timezone: Asia/Shanghai
-    const:
-      hit: 0
-      miss: 8
-      output: 28
-    cacheSaving: null
-
-  # glm-5.3-flash：限时五折（原价 miss 0.8 / output 2.8 / hit 0.23），到期请改回原价
-  - model: glm-5.3-flash
-    provider: zai-coding-cn
-    timezone: Asia/Shanghai
-    const:
-      hit: 0.115
-      miss: 0.4
-      output: 1.4
     cacheSaving: null
