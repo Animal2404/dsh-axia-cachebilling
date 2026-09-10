@@ -5,7 +5,8 @@
  * 形态：设置页顶级分区（settings.section，与「通用」「模型」「插件」平级的独立标签页）。
  * 2026-08-30 猫猫拍板「我们需要在设置加个标签页，不是把信息加到别人的标签页里」——由旧形态（settings.plugin.item 卡片，住在官方插件 tab）升级而来。
  * 契约照官方 settings.section（ui-settings-general / ui-settings-models 同款）：
- *   - host 半身（index.ts）用 installSettingsSection 注册命名空间 dsh-axia-cachebilling，base = 包根 rates.yml 预填层（不变）
+ *   - host 半身（index.ts）用 installSettingsSection 注册命名空间 meow-cachebilling（刻意沿用改名前的老 id：
+ *     用户已存的价目条目就住在那个键下，见 index.ts 的 SETTINGS_NS 注释），base = 包根 rates.yml 预填层（不变）
  *   - 浏览器半身挂 settings.section（list slot：id + order + label），整页渲染价目表
  *   - 快照三视图：value(合成) / base(预填) / user(用户覆盖)；scope.set(field, value) 写用户层、scope.unset(field) 清回预填
  *   - 双层语义：key 存在于 user 层即覆盖预填条目；「恢复预填」= unset；自定义条目删除 = unset

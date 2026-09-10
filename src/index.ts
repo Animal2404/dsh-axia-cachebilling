@@ -21,8 +21,14 @@ import { defineDomain, domainTable, type KvTable } from '@deepseek-ai/dsh-storag
 /** 插件名，与 cordis.patch.yml 的 name 一致，loader 诊断用。 */
 export const name = 'dsh-axia-cachebilling'
 
-/** 设置命名空间：预填层(rates.yml)之上的用户层住这里，与设置页卡片、手编 settings.yaml 三方共用。 */
-const SETTINGS_NS = settingsNamespace('dsh-axia-cachebilling')
+/**
+ * 设置命名空间：预填层(rates.yml)之上的用户层住这里，与设置页卡片、手编 settings.yaml 三方共用。
+ *
+ * ⚠️ 这里刻意保留改名前的老 id：它是**数据地址**，不是名字。用户已保存的价目条目全都存在
+ * `settings.yaml` 的 `meow-cachebilling:` 段下；换成插件新名会让配置静默消失、DSH 也会把该命名空间
+ * 当成不可写（设置页只剩「不支持写入」）。改名前它就叫这个，改回即恢复。
+ */
+const SETTINGS_NS = settingsNamespace('meow-cachebilling')
 
 /** 必需服务：sessionProjections 由 @deepseek-ai/dsh-session-projection 提供，storageDomain 由 @deepseek-ai/dsh-storage-domain 提供（每步花费历史的落盘层），sessionPersistence 供旧记录迁移读日志。 */
 export const inject = ['sessionProjections', 'storageDomain', 'sessionPersistence']
