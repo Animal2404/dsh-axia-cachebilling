@@ -545,17 +545,17 @@ function CacheDataHook(props: any) {
 
   return React.createElement('span', {
     'data-meow-cachebilling': 'hook',
-    'data-meowcb-version': 'cmp-29',
+    'data-meowcb-version': 'cmp-30',
     style: { display: 'none' },
   })
 }
 
-export const inject = ['slots', 'connection', 'remote', 'settingsScope', 'settingsSchema']
+export const inject = ['slots', 'connection', 'remote', 'remote.llm', 'settingsScope', 'settingsSchema']
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function apply(ctx: any): void {
   // 版本标记：排障用，每次改动 bump——rev 滞后时看控制台标记就知道浏览器跑的是哪一版
-  console.log('[meow-cachebilling] client bundle: cmp-29')
+  console.log('[meow-cachebilling] client bundle: cmp-30')
   if (
     typeof document !== 'undefined' &&
     document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null

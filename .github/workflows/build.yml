@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,3 +18,18 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      # 云端构建产物回写：只在 main 的 push 上跑，构建结果与仓库里的 lib/ 不同就提交回去，
+      # 这样正常流程只需要改 src/ 并 push —— 产物由 Actions 生成，维护者不用在本地构建。
+      # 提交信息带 [skip ci]，避免自触发死循环。
+      - name: Commit built artifacts back
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib
+          if git diff --cached --quiet; then
+            echo "lib/ 与构建产物一致，无需回写"
+            exit 0
+          fi
+          git commit -m "chore(build): rebuild lib/ from src [skip ci]"
+          git push
