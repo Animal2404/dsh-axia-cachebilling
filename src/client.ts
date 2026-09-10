@@ -622,15 +622,18 @@ export function apply(ctx: any): void {
   console.log('[dsh-axia-cachebilling] client bundle: cmp-31')
   // 字号档位落到 <html> 的 --axia-fs：账单弹层（本文件 CSS）与设置页（settings.ts CSS）一起生效
   applyFontScale(readFontScale())
-  if (
-    typeof document !== 'undefined' &&
-    document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null
-  ) {
-    const tag = document.createElement('style')
-    tag.dataset.plugin = 'dsh-axia-cachebilling'
-    tag.dataset.pluginCss = CSS_ID
-    tag.textContent = CSS
-    document.head.appendChild(tag)
+  // 样式注入「存在则更新」：只跳过会导致热重载后旧 CSS 一直生效（改样式要整页刷新才看出）
+  if (typeof document !== 'undefined') {
+    const existing = document.querySelector(`style[data-plugin-css="${CSS_ID}"]`)
+    if (existing !== null) {
+      existing.textContent = CSS
+    } else {
+      const tag = document.createElement('style')
+      tag.dataset.plugin = 'dsh-axia-cachebilling'
+      tag.dataset.pluginCss = CSS_ID
+      tag.textContent = CSS
+      document.head.appendChild(tag)
+    }
   }
   if (typeof document !== 'undefined') {
     startPanelBridge()

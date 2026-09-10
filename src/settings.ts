@@ -1181,12 +1181,19 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
 
 export function applySettings(ctx: any): void {
   applyFontScale(readFontScale())
-  if (typeof document !== 'undefined' && document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null) {
-    const tag = document.createElement('style')
-    tag.dataset.plugin = 'dsh-axia-cachebilling-settings'
-    tag.dataset.pluginCss = CSS_ID
-    tag.textContent = CSS
-    document.head.appendChild(tag)
+  // 样式注入必须「存在则更新」：只写「已有就跳过」会让热重载后旧 CSS 一直生效
+  // （典型症状：改了样式却要整页刷新才看得出，甚至旧规则一直压着新规则）
+  if (typeof document !== 'undefined') {
+    const existing = document.querySelector(`style[data-plugin-css="${CSS_ID}"]`)
+    if (existing !== null) {
+      existing.textContent = CSS
+    } else {
+      const tag = document.createElement('style')
+      tag.dataset.plugin = 'dsh-axia-cachebilling-settings'
+      tag.dataset.pluginCss = CSS_ID
+      tag.textContent = CSS
+      document.head.appendChild(tag)
+    }
   }
 
   const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NS })
