@@ -554,6 +554,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   }>({ status: 'idle', catalog: null, note: null })
   /** 用户是否亲手改过模型字段：只有新条目或手改过模型才自动套目录价，编辑旧条目时不能覆盖已存的价格 */
   const modelTouched = React.useRef(false)
+  /** 上一次由目录自动写进去的版本名：换模型时能安全覆盖它，但绝不动用户手写的版本名 */
+  const autoLabel = React.useRef<string | null>(null)
 
   const base = snap.base ?? {}
   const user = snap.user ?? {}
@@ -667,7 +669,11 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     } else {
       return
     }
-    if (entry.label && (draft === null || draft.label.trim() === '')) patch.label = entry.label
+    const currentLabel = draft === null ? '' : draft.label.trim()
+    if (entry.label && (currentLabel === '' || currentLabel === autoLabel.current)) {
+      patch.label = entry.label
+      autoLabel.current = entry.label
+    }
     set(patch)
     const shape = entry.peak && entry.valley ? '峰谷价' : '一口价'
     const scope = match.providerMatched ? '' : '（仅按模型名匹配，供应商没识别出来）'
