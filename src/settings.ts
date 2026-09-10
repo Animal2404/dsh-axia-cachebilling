@@ -17,8 +17,42 @@ import * as React from 'react'
 const SETTINGS_NS = 'meow-cachebilling'
 const CSS_ID = 'meow-cachebilling-settings-css'
 
+// ── 字号档位（大屏 / 远距离阅读）─────────────────────────────────────────────
+//
+// 账单弹层原本 9–10px、设置页 11.5–13px：32 寸 4K 屏在一米外用眼睛读会吃力。
+// 给四档字号，写进 <html> 的 --meow-fs：账单弹层按它做 calc 缩放，设置页按它整体 zoom，
+// 两边一起变大；存 localStorage（跟着浏览器走，不需要动 DSH 设置）。
+
+const FONT_SCALE_KEY = 'meowcb-font-scale'
+const DEFAULT_FONT_SCALE = 1.25
+export const FONT_SCALES: Array<{ value: number; label: string }> = [
+  { value: 1, label: '标准' },
+  { value: 1.25, label: '大' },
+  { value: 1.5, label: '超大' },
+  { value: 2, label: '巨大' },
+]
+
+export function readFontScale(): number {
+  try {
+    const value = Number(localStorage.getItem(FONT_SCALE_KEY))
+    if (Number.isFinite(value) && value >= 0.8 && value <= 2.5) return value
+  } catch {
+    /* 隐私模式 / 无 localStorage：用默认档 */
+  }
+  return DEFAULT_FONT_SCALE
+}
+
+export function applyFontScale(value: number): void {
+  try {
+    document.documentElement.style.setProperty('--meow-fs', String(value))
+    localStorage.setItem(FONT_SCALE_KEY, String(value))
+  } catch {
+    /* 忽略：取不到就维持默认档 */
+  }
+}
+
 const CSS = `
-.meowcb_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:820px;padding:4px 0}
+.meowcb_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:min(calc(820px / var(--meow-fs,1)),100%);padding:4px 0;zoom:var(--meow-fs,1)}
 /* 自带 border-box：DSH 外壳不重置盒模型，缺了它 width:100% 的输入框会撑破网格、互相压边 */
 .meowcb_set_page,.meowcb_set_page *{box-sizing:border-box}
 .meowcb_set_head{display:flex;flex-direction:column;gap:4px}
@@ -27,7 +61,7 @@ const CSS = `
 .meowcb_set_card{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:12px;display:flex;flex-direction:column;gap:10px;padding:14px}
 .meowcb_set_legend{align-items:center;color:var(--dsw-alias-label-caption);display:flex;flex-wrap:wrap;font-size:12px;gap:6px 10px;line-height:1.6}
 .meowcb_set_legend b{color:var(--dsw-alias-label-secondary);font-weight:600}
-.meowcb_set_toolbar{align-items:center;display:flex;gap:8px}
+.meowcb_set_toolbar{align-items:center;display:flex;flex-wrap:wrap;gap:8px}
 .meowcb_set_count{color:var(--dsw-alias-label-caption);font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto}
 .meowcb_set_btn{align-items:center;background:transparent;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-secondary);cursor:pointer;display:inline-flex;font-size:12.5px;gap:4px;padding:5px 11px;transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
 .meowcb_set_btn:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}
@@ -504,6 +538,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   const [discovered, setDiscovered] = React.useState<string[]>([])
   const [probe, setProbe] = React.useState<{ busy: boolean; note: string | null }>({ busy: false, note: null })
   const [manual, setManual] = React.useState<{ provider: boolean; model: boolean }>({ provider: false, model: false })
+  const [scale, setScale] = React.useState<number>(() => readFontScale())
 
   const base = snap.base ?? {}
   const user = snap.user ?? {}
@@ -948,6 +983,27 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
         },
         '＋ 添加条目',
       ),
+      el('span', { className: 'meowcb_set_spacer' }),
+      el('span', { className: 'meowcb_set_label' }, '字号'),
+      el(
+        'div',
+        { className: 'meowcb_set_seg' },
+        FONT_SCALES.map((s) =>
+          el(
+            'button',
+            {
+              key: s.value,
+              type: 'button',
+              className: 'meowcb_set_segbtn' + (scale === s.value ? ' meowcb_set_segbtn_on' : ''),
+              onClick: () => {
+                setScale(s.value)
+                applyFontScale(s.value)
+              },
+            },
+            s.label,
+          ),
+        ),
+      ),
       el('span', { className: 'meowcb_set_count' }, `共 ${total} 条`),
     ),
     expandedIsNew ? editor : null,
@@ -965,6 +1021,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
 // ── 挂载 ────────────────────────────────────────────────────────────────────
 
 export function applySettings(ctx: any): void {
+  applyFontScale(readFontScale())
   if (typeof document !== 'undefined' && document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null) {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'meow-cachebilling-settings'

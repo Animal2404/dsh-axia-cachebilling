@@ -10,28 +10,29 @@
  */
 
 import * as React from 'react'
-import { applySettings } from './settings'
+import { applyFontScale, applySettings, readFontScale } from './settings'
 
 /** 样式注入标识（防重复注入）。 */
 const CSS_ID = 'meow-cachebilling-css'
 
 /** 账单区块样式：排版语言复刻官方弹层，顶部细分隔线与官方 rows 区隔。层级：标题（色块+默认大字）> 子项（11px 小字）；账表/右列数据全小字，SVG 内 9px。 */
 const CSS = `
-.meowcb_bill{margin-top:8px;padding-top:8px;border-top:1px solid var(--dsw-alias-border-l3)}
-.meowcb_grid{display:grid;grid-template-columns:max-content 1fr 1fr 1fr 1fr;column-gap:10px;row-gap:2px;margin-top:4px;align-items:baseline;font-size:10px;line-height:14px;text-align:center}
+/* 所有尺寸乘 --meow-fs（字号档位，见 settings.ts 的 applyFontScale）：大屏远距离直接调档，不用动浏览器缩放 */
+.meowcb_bill{margin-top:calc(8px * var(--meow-fs,1));padding-top:calc(8px * var(--meow-fs,1));border-top:1px solid var(--dsw-alias-border-l3)}
+.meowcb_grid{display:grid;grid-template-columns:max-content 1fr 1fr 1fr 1fr;column-gap:calc(10px * var(--meow-fs,1));row-gap:calc(2px * var(--meow-fs,1));margin-top:calc(4px * var(--meow-fs,1));align-items:baseline;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1));text-align:center}
 .meowcb_lab{color:var(--dsw-alias-label-secondary);font-weight:400;white-space:nowrap}
 .meowcb_t{color:var(--dsw-alias-label-primary);font-weight:500;font-variant-numeric:tabular-nums}
 .meowcb_h{color:var(--dsw-alias-label-secondary);font-weight:400;text-align:center;white-space:nowrap}
 .meowcb_v{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500;text-align:center}
-.meowcb_sechead{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);margin:2px 0;font-size:12px;line-height:20px}
-.meowcb_secheadsw{width:8px;height:8px;border-radius:2px;flex:none}
-.meowcb_subhead{color:var(--dsw-alias-label-secondary);font-size:10px;line-height:14px;font-weight:700}
-.meowcb_modeline{color:var(--dsw-alias-label-secondary);font-size:10px;line-height:14px}
-.meowcb_foot{margin-top:6px;color:var(--dsw-alias-label-caption);font-size:10px;line-height:14px}
-.meowcb_notice{color:#f59e0b;font-size:10px;line-height:14px}
-.meowcb_chartwrap{display:flex;gap:12px;align-items:center;margin-top:4px}
-.meowcb_chartcol{flex:none;width:124px}
-.meowcb_chartside{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.meowcb_sechead{display:flex;align-items:center;gap:calc(6px * var(--meow-fs,1));color:var(--dsw-alias-label-secondary);margin:calc(2px * var(--meow-fs,1)) 0;font-size:calc(12px * var(--meow-fs,1));line-height:calc(20px * var(--meow-fs,1))}
+.meowcb_secheadsw{width:calc(8px * var(--meow-fs,1));height:calc(8px * var(--meow-fs,1));border-radius:2px;flex:none}
+.meowcb_subhead{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1));font-weight:700}
+.meowcb_modeline{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
+.meowcb_foot{margin-top:calc(6px * var(--meow-fs,1));color:var(--dsw-alias-label-caption);font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
+.meowcb_notice{color:#f59e0b;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
+.meowcb_chartwrap{display:flex;gap:calc(12px * var(--meow-fs,1));align-items:center;margin-top:calc(4px * var(--meow-fs,1))}
+.meowcb_chartcol{flex:none;width:calc(124px * var(--meow-fs,1))}
+.meowcb_chartside{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(2px * var(--meow-fs,1))}
 .meowcb_svg{display:block;width:100%;height:auto}
 .meowcb_axis{stroke:var(--dsw-alias-border-l3);stroke-width:1}
 .meowcb_avgarea{fill:#60a5fa;fill-opacity:.2;stroke:none}
@@ -40,8 +41,8 @@ const CSS = `
 .meowcb_avghitblock{fill:#bef264;fill-opacity:.1}
 .meowcb_cur{stroke:#f59e0b;stroke-width:1.5;fill:none}
 .meowcb_dotcur{fill:#f59e0b}
-.meowcb_axlabel{fill:var(--dsw-alias-label-caption);font-size:9px}
-.meowcb_cmplab{color:var(--dsw-alias-label-secondary);white-space:nowrap;display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:10px;line-height:14px}
+.meowcb_axlabel{fill:var(--dsw-alias-label-caption);font-size:calc(9px * var(--meow-fs,1))}
+.meowcb_cmplab{color:var(--dsw-alias-label-secondary);white-space:nowrap;display:flex;justify-content:space-between;gap:calc(8px * var(--meow-fs,1));align-items:baseline;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
 .meowcb_cmpv{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500}
 
 /* 手机矮视口适配：官方弹层 bottom 锚定向上生长且无高度上限（桌面假设），贴入账单后在手机竖屏会顶出屏幕外；
@@ -545,7 +546,7 @@ function CacheDataHook(props: any) {
 
   return React.createElement('span', {
     'data-meow-cachebilling': 'hook',
-    'data-meowcb-version': 'cmp-30',
+    'data-meowcb-version': 'cmp-31',
     style: { display: 'none' },
   })
 }
@@ -555,7 +556,9 @@ export const inject = ['slots', 'connection', 'remote', 'remote.llm', 'settingsS
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function apply(ctx: any): void {
   // 版本标记：排障用，每次改动 bump——rev 滞后时看控制台标记就知道浏览器跑的是哪一版
-  console.log('[meow-cachebilling] client bundle: cmp-30')
+  console.log('[meow-cachebilling] client bundle: cmp-31')
+  // 字号档位落到 <html> 的 --meow-fs：账单弹层（本文件 CSS）与设置页（settings.ts CSS）一起生效
+  applyFontScale(readFontScale())
   if (
     typeof document !== 'undefined' &&
     document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null
