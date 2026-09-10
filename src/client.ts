@@ -44,6 +44,10 @@ const CSS = `
 .axia_axlabel{fill:var(--dsw-alias-label-caption);font-size:calc(9px * var(--axia-fs,1))}
 .axia_cmplab{color:var(--dsw-alias-label-secondary);white-space:nowrap;display:flex;justify-content:space-between;gap:calc(8px * var(--axia-fs,1));align-items:baseline;font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
 .axia_cmpv{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500}
+/* 明细行（重做版）：标签左、数值右，行间一条极淡分隔线；比原来的小节堆叠清爽 */
+.axia_drow{display:flex;align-items:baseline;justify-content:space-between;gap:calc(10px * var(--axia-fs,1));padding:calc(3px * var(--axia-fs,1)) 0;border-top:1px solid var(--dsw-alias-border-l4)}
+.axia_dlab{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
+.axia_dval{color:var(--dsw-alias-label-primary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1));font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* 手机矮视口适配：官方弹层 bottom 锚定向上生长且无高度上限（桌面假设），贴入账单后在手机竖屏会顶出屏幕外；
    同理 width 写死 264px，折叠屏折叠态外屏 CSS 视口更窄（<264px+边距）时弹层左缘整体被推出屏幕左缘外。
@@ -174,6 +178,53 @@ function isContextPanel(node: Node): node is HTMLElement {
   return /of context used|上下文已用/i.test(label)
 }
 
+/**
+ * 上下文弹层里的账单明细（重做版）：模型行 +「消耗比较」+「缓存」两节，全部是「标签—数值」行。
+ *
+ * 按用户反馈去掉原先的面积趋势图（突兀、没必要）：一屏之内看账单时，曲线既不参与决策又占掉一半高度。
+ * 需要历史对比时直接看上面的三行表（当前步/当前轮/本会话）即可。
+ */
+function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: CacheBillingView): void {
+  const provider = view.provider ?? ''
+  const tierMap = isOfficialDeepSeek(provider) ? TIER_LABEL : TIER_LABEL_GENERIC
+  const tier = view.tier ? tierMap[view.tier] : ''
+
+  const modelLine = doc.createElement('div')
+  modelLine.className = 'axia_modeline'
+  modelLine.textContent = `${provider}/${view.model ?? ''}${tier ? ` · ${tier}` : ''}`
+  put(modelLine)
+
+  const money = (value: number | undefined): string =>
+    `${view.currency === 'USD' ? '$' : '¥'}${formatAmount(Number.isFinite(value) ? (value as number) : 0)}`
+  const section = (title: string): void => put(secHead(doc, '#60a5fa', title))
+  const row = (label: string, value: string, hint?: string): void => {
+    const line = doc.createElement('div')
+    line.className = 'axia_drow'
+    if (hint) line.title = hint
+    const lab = doc.createElement('span')
+    lab.className = 'axia_dlab'
+    lab.textContent = label
+    const val = doc.createElement('span')
+    val.className = 'axia_dval'
+    val.textContent = value
+    line.appendChild(lab)
+    line.appendChild(val)
+    put(line)
+  }
+
+  const cmp = view.compare
+  if (cmp) {
+    section('消耗比较')
+    row('读代码', money(cmp.readCode), '前两轮所有未命中输入之和：新开窗口后 AI 重读代码的代价')
+    row('缓存', money(cmp.cache), '当前这一步的缓存命中花费')
+    row('缓存失效', money(cmp.fullMiss), '若服务器缓存已失效，本窗口上下文全按未命中计价的花费')
+  }
+  section('缓存')
+  row('完全失效次数', `${view.sessionFullMissSteps ?? 0} 次`, '有输入但缓存命中为 0 的步数')
+  row('缓存时间估算', '暂未实现')
+  row('现在失效可能', '暂未实现')
+}
+
 /** 用最新投影刷新账单区块内容，区块骨架已在贴装时建好。 */
 function renderBill(bill: HTMLElement): void {
   const doc = bill.ownerDocument
@@ -298,7 +349,7 @@ function renderBill(bill: HTMLElement): void {
   }
 
   // 块 2+3 合并布局：标题横贯顶部（provider/model，峰谷带括号），左=竖长方形曲线（图例画图内），右=「消耗比较」+「缓存」两节——失效统计从表下小字搬入右列，底部灰字删除（猫猫 08-31 定稿）。
-  renderChart(doc, put, view)
+  renderDetails(doc, put, view)
 }
 
 /** 块 2+3 合并布局（猫猫 2026-08-31 定稿，cmp-24 面积图）：标题横贯顶部「对于 provider/model」（峰谷带括号：官方梁文峰/梁文谷、其他峰价/谷价；一口价不加括号），底部灰字删除。左半边竖长方形手写 SVG——两条平均值画曲线下面积（平均（总）蓝/平均缓存绿，半透明填色无描边，缓存嵌套透色可辨），本会话（总）保持橙色描边线；图例（蓝块/橙线/绿块）竖排图内左上，轴标签紧凑贴边；右半边两节：「■ 消耗比较」三数 + 「■ 缓存」失效统计（完全失效次数；缓存时间估算/现在失效可能占位「暂未实现」待口径）。curve 与 compare 任一存在即渲染，估算场景 curve 为 null 只出右列。 */
