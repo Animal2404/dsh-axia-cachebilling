@@ -1,4 +1,4 @@
-# meow-cachebilling
+# 虾算账 (meow-cachebilling)
 
 [简体中文](./README.md) | English
 

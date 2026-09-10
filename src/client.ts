@@ -208,7 +208,7 @@ function renderBill(bill: HTMLElement): void {
     const notice = doc.createElement('div')
     notice.className = 'meowcb_notice'
     notice.textContent =
-      '［喵缓存账单］当前模型无价格数据，请去设置界面添加。以下为Deepseek价格，仅供参考：'
+      '［虾算账］当前模型无价格数据，请去设置界面添加。以下为Deepseek价格，仅供参考：'
     put(notice)
   }
 

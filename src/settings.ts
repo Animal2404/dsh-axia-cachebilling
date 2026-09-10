@@ -1,5 +1,5 @@
 /**
- * meow-cachebilling — 设置页模块（喵缓存账单）。
+ * meow-cachebilling — 设置页模块（虾算账）。
  *
  * 独立模块：只管设置页的显示与读写，不掺和账单渲染；由 client.ts 引入（一行 applySettings(ctx)，失败仅警告不影响账单）。
  * 形态：设置页顶级分区（settings.section，与「通用」「模型」「插件」平级的独立标签页）。
@@ -1192,7 +1192,7 @@ export function applySettings(ctx: any): void {
         name: 'settings.section',
         id: SETTINGS_NS,
         order: 30,
-        label: () => '喵缓存账单',
+        label: () => '虾算账',
         inject: (): unknown => ({ scope, remote: ctx.remote, settingsScope: ctx.settingsScope }),
       },
       BillingSection,
@@ -1208,7 +1208,7 @@ function BillingSection(props: { scope: any; remote?: any; settingsScope?: any }
     el(
       'div',
       { className: 'meowcb_set_head' },
-      el('h2', { className: 'meowcb_set_title' }, '喵缓存账单'),
+      el('h2', { className: 'meowcb_set_title' }, '虾算账'),
       el(
         'p',
         { className: 'meowcb_set_subtitle' },
