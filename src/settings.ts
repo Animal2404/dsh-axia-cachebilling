@@ -209,7 +209,7 @@ function draftFromEntry(e: UserEntry): Draft {
     provider: e.provider ?? '',
     model: e.model ?? '',
     label: e.label ?? '',
-    timezone: e.timezone ?? '',
+    timezone: e.timezone ?? 'Asia/Shanghai',
     isPeak: Boolean(e.peak),
     flatHit: e.const ? String(e.const.hit) : NUM,
     flatMiss: e.const ? String(e.const.miss) : NUM,
@@ -228,7 +228,7 @@ const emptyDraft = (): Draft => ({
   provider: '',
   model: '',
   label: '',
-  timezone: '',
+  timezone: 'Asia/Shanghai',
   isPeak: false,
   flatHit: NUM,
   flatMiss: NUM,
@@ -658,7 +658,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   const tzFor = (provider: string): { auto: boolean; tz: string } => {
     const p = provider.trim().toLowerCase()
     if (p && PROVIDER_TIMEZONE[p]) return { auto: true, tz: PROVIDER_TIMEZONE[p] }
-    return { auto: false, tz: draft?.timezone ?? 'UTC' }
+    // 兜底给北京时间：绝大多数中转按中国时区出账单，省得每次手填
+    return { auto: false, tz: draft?.timezone ?? 'Asia/Shanghai' }
   }
   /** 只在用户提交过一次之后再标红，避免一打开就满屏"报错"。 */
   const tried = error !== null
