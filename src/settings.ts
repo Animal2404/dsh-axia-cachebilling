@@ -724,7 +724,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   }
 
   const save = async (): Promise<void> => {
-    if (!draft || !expanded) return    const err = validateDraft(draft)
+    if (!draft || !expanded) return
+    const err = validateDraft(draft)
     if (err) {
       setError(err)
       return
