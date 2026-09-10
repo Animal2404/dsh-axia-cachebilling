@@ -1,4 +1,4 @@
-# 虾算账（meow-cachebilling）
+# 虾算账（dsh-axia-cachebilling）
 
 [English](./README.en.md)
 
@@ -106,7 +106,7 @@ AI需要重读代码的miss输入（可以通过fork减少这项成本）。
 ## 安装
 
 ```sh
-dsh plugin --profile web add github:Phant0Meow/dsh-meow-cachebilling
+dsh plugin --profile web add github:Phant0Meow/dsh-dsh-axia-cachebilling
 ```
 
 一条命令装完即生效：安装时自动编译（包内含 `prepare` 脚本），自动挂载，重启 `dsh web` 后启用，无需任何配置。
@@ -116,7 +116,7 @@ dsh plugin --profile web add github:Phant0Meow/dsh-meow-cachebilling
 ## 卸载
 
 ```sh
-dsh plugin --profile web remove meow-cachebilling
+dsh plugin --profile web remove dsh-axia-cachebilling
 ```
 
 彻底移除，重启 `dsh web` 后不再加载。
@@ -151,7 +151,7 @@ dsh plugin --profile web remove meow-cachebilling
 ## 致谢
 感谢 [better-er](https://github.com/better-er) 的贡献！
 
-三级账单（当前每次API请求 / 当前轮 / 会话累计）、api返回的缓存失效次数统计，来自 [better-er](https://github.com/better-er) 的大幅重写（[#2](https://github.com/Phant0Meow/dsh-meow-cachebilling/pull/2)）；
+三级账单（当前每次API请求 / 当前轮 / 会话累计）、api返回的缓存失效次数统计，来自 [better-er](https://github.com/better-er) 的大幅重写（[#2](https://github.com/Phant0Meow/dsh-dsh-axia-cachebilling/pull/2)）；
 他也打开了本插件对非ds官方api的显示，我之后的确想加对其他api的支持，所以也merge了这处改动。
 账单底部把原本的「峰价/谷价」改为「梁文峰/梁文谷」的彩蛋也是他的手笔，我们觉得有趣就也保留了。
 感谢他给我们提的PR，感谢他的贡献！

@@ -1,4 +1,4 @@
-# 虾算账 (meow-cachebilling)
+# 虾算账 (dsh-axia-cachebilling)
 
 [简体中文](./README.md) | English
 
@@ -88,7 +88,7 @@ But it really does save money...
 ## Install
 
 ```sh
-dsh plugin --profile web add github:Phant0Meow/dsh-meow-cachebilling
+dsh plugin --profile web add github:Phant0Meow/dsh-dsh-axia-cachebilling
 ```
 
 Restart `dsh web` after installing. Zero configuration.
@@ -121,7 +121,7 @@ On third-party relays the rate card may differ — matched models estimate at th
 
 ## Credits
 
-The three timing tiers (current API call / current turn / session total), third-party relay support and the cache-invalidation stats come from a major rewrite by [better-er](https://github.com/better-er) ([#2](https://github.com/Phant0Meow/dsh-meow-cachebilling/pull/2)); the 梁文峰/梁文谷 peak/valley pun in the bill footer is his idea too — we found it fun and kept it. The peak/valley pricing itself is this plugin's own feature, which his version carried over as-is. Thank you!
+The three timing tiers (current API call / current turn / session total), third-party relay support and the cache-invalidation stats come from a major rewrite by [better-er](https://github.com/better-er) ([#2](https://github.com/Phant0Meow/dsh-dsh-axia-cachebilling/pull/2)); the 梁文峰/梁文谷 peak/valley pun in the bill footer is his idea too — we found it fun and kept it. The peak/valley pricing itself is this plugin's own feature, which his version carried over as-is. Thank you!
 
 ## License
 

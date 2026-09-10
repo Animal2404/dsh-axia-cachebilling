@@ -1,4 +1,4 @@
-# meow-cachebilling 价目表（元 / 百万 token）
+# dsh-axia-cachebilling 价目表（元 / 百万 token）
 #
 # 手填指南：
 #   model       写 API 实际返回的模型名（匹配=先精确、再后缀，大小写不敏感）

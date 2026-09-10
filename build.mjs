@@ -51,7 +51,7 @@ const clientOptions = {
   banner: {
     js: [
       'window.__ModuleLoader__.load({',
-      '  id: "meow-cachebilling",',
+      '  id: "dsh-axia-cachebilling",',
       '  factory: (require) => {',
       '    var module = { exports: {} };',
       '    var exports = module.exports;',

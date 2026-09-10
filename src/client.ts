@@ -1,5 +1,5 @@
 /**
- * meow-cachebilling — 缓存账单浏览器端。
+ * dsh-axia-cachebilling — 缓存账单浏览器端。
  *
  * 不再自带任何按钮或占位行：官方上下文圆环点开的弹层本来就是「这个会话用了多少」的语义，缓存账单的「这步花了多少、要不要换窗口」语义与之天然同源，用户拍板就该放到那里。因此监听官方弹层的打开，把账单区块直接贴进去。
  *
@@ -13,37 +13,37 @@ import * as React from 'react'
 import { applyFontScale, applySettings, readFontScale } from './settings'
 
 /** 样式注入标识（防重复注入）。 */
-const CSS_ID = 'meow-cachebilling-css'
+const CSS_ID = 'dsh-axia-cachebilling-css'
 
 /** 账单区块样式：排版语言复刻官方弹层，顶部细分隔线与官方 rows 区隔。层级：标题（色块+默认大字）> 子项（11px 小字）；账表/右列数据全小字，SVG 内 9px。 */
 const CSS = `
-/* 所有尺寸乘 --meow-fs（字号档位，见 settings.ts 的 applyFontScale）：大屏远距离直接调档，不用动浏览器缩放 */
-.meowcb_bill{margin-top:calc(8px * var(--meow-fs,1));padding-top:calc(8px * var(--meow-fs,1));border-top:1px solid var(--dsw-alias-border-l3)}
-.meowcb_grid{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));column-gap:calc(10px * var(--meow-fs,1));row-gap:calc(2px * var(--meow-fs,1));margin-top:calc(4px * var(--meow-fs,1));align-items:baseline;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1));text-align:center}
-.meowcb_lab{color:var(--dsw-alias-label-secondary);font-weight:400;white-space:nowrap}
-.meowcb_t{color:var(--dsw-alias-label-primary);font-weight:500;font-variant-numeric:tabular-nums}
-.meowcb_h{color:var(--dsw-alias-label-secondary);font-weight:400;text-align:center;white-space:nowrap}
-.meowcb_v{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500;text-align:center}
-.meowcb_sechead{display:flex;align-items:center;gap:calc(6px * var(--meow-fs,1));color:var(--dsw-alias-label-secondary);margin:calc(2px * var(--meow-fs,1)) 0;font-size:calc(12px * var(--meow-fs,1));line-height:calc(20px * var(--meow-fs,1))}
-.meowcb_secheadsw{width:calc(8px * var(--meow-fs,1));height:calc(8px * var(--meow-fs,1));border-radius:2px;flex:none}
-.meowcb_subhead{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1));font-weight:700}
-.meowcb_modeline{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
-.meowcb_foot{margin-top:calc(6px * var(--meow-fs,1));color:var(--dsw-alias-label-caption);font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
-.meowcb_notice{color:#f59e0b;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
-.meowcb_chartwrap{display:flex;gap:calc(12px * var(--meow-fs,1));align-items:center;margin-top:calc(4px * var(--meow-fs,1))}
-.meowcb_chartcol{flex:none;width:calc(124px * var(--meow-fs,1))}
-.meowcb_chartside{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(2px * var(--meow-fs,1))}
-.meowcb_svg{display:block;width:100%;height:auto}
-.meowcb_axis{stroke:var(--dsw-alias-border-l3);stroke-width:1}
-.meowcb_avgarea{fill:#60a5fa;fill-opacity:.2;stroke:none}
-.meowcb_avghitarea{fill:#bef264;fill-opacity:.1;stroke:none}
-.meowcb_avgblock{fill:#60a5fa;fill-opacity:.2}
-.meowcb_avghitblock{fill:#bef264;fill-opacity:.1}
-.meowcb_cur{stroke:#f59e0b;stroke-width:1.5;fill:none}
-.meowcb_dotcur{fill:#f59e0b}
-.meowcb_axlabel{fill:var(--dsw-alias-label-caption);font-size:calc(9px * var(--meow-fs,1))}
-.meowcb_cmplab{color:var(--dsw-alias-label-secondary);white-space:nowrap;display:flex;justify-content:space-between;gap:calc(8px * var(--meow-fs,1));align-items:baseline;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1))}
-.meowcb_cmpv{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500}
+/* 所有尺寸乘 --axia-fs（字号档位，见 settings.ts 的 applyFontScale）：大屏远距离直接调档，不用动浏览器缩放 */
+.axia_bill{margin-top:calc(8px * var(--axia-fs,1));padding-top:calc(8px * var(--axia-fs,1));border-top:1px solid var(--dsw-alias-border-l3)}
+.axia_grid{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));column-gap:calc(10px * var(--axia-fs,1));row-gap:calc(2px * var(--axia-fs,1));margin-top:calc(4px * var(--axia-fs,1));align-items:baseline;font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1));text-align:center}
+.axia_lab{color:var(--dsw-alias-label-secondary);font-weight:400;white-space:nowrap}
+.axia_t{color:var(--dsw-alias-label-primary);font-weight:500;font-variant-numeric:tabular-nums}
+.axia_h{color:var(--dsw-alias-label-secondary);font-weight:400;text-align:center;white-space:nowrap}
+.axia_v{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500;text-align:center}
+.axia_sechead{display:flex;align-items:center;gap:calc(6px * var(--axia-fs,1));color:var(--dsw-alias-label-secondary);margin:calc(2px * var(--axia-fs,1)) 0;font-size:calc(12px * var(--axia-fs,1));line-height:calc(20px * var(--axia-fs,1))}
+.axia_secheadsw{width:calc(8px * var(--axia-fs,1));height:calc(8px * var(--axia-fs,1));border-radius:2px;flex:none}
+.axia_subhead{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1));font-weight:700}
+.axia_modeline{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
+.axia_foot{margin-top:calc(6px * var(--axia-fs,1));color:var(--dsw-alias-label-caption);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
+.axia_notice{color:#f59e0b;font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
+.axia_chartwrap{display:flex;gap:calc(12px * var(--axia-fs,1));align-items:center;margin-top:calc(4px * var(--axia-fs,1))}
+.axia_chartcol{flex:none;width:calc(124px * var(--axia-fs,1))}
+.axia_chartside{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(2px * var(--axia-fs,1))}
+.axia_svg{display:block;width:100%;height:auto}
+.axia_axis{stroke:var(--dsw-alias-border-l3);stroke-width:1}
+.axia_avgarea{fill:#60a5fa;fill-opacity:.2;stroke:none}
+.axia_avghitarea{fill:#bef264;fill-opacity:.1;stroke:none}
+.axia_avgblock{fill:#60a5fa;fill-opacity:.2}
+.axia_avghitblock{fill:#bef264;fill-opacity:.1}
+.axia_cur{stroke:#f59e0b;stroke-width:1.5;fill:none}
+.axia_dotcur{fill:#f59e0b}
+.axia_axlabel{fill:var(--dsw-alias-label-caption);font-size:calc(9px * var(--axia-fs,1))}
+.axia_cmplab{color:var(--dsw-alias-label-secondary);white-space:nowrap;display:flex;justify-content:space-between;gap:calc(8px * var(--axia-fs,1));align-items:baseline;font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
+.axia_cmpv{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-weight:500}
 
 /* 手机矮视口适配：官方弹层 bottom 锚定向上生长且无高度上限（桌面假设），贴入账单后在手机竖屏会顶出屏幕外；
    同理 width 写死 264px，折叠屏折叠态外屏 CSS 视口更窄（<264px+边距）时弹层左缘整体被推出屏幕左缘外。
@@ -55,8 +55,8 @@ const CSS = `
 [role="dialog"][aria-label*="of context used"] {
   max-height: calc(100vh - 140px);
   max-height: calc(100dvh - 140px);
-  min-width: min(calc(264px * var(--meow-fs,1)), calc(100vw - 20px));
-  min-width: min(calc(264px * var(--meow-fs,1)), calc(100dvw - 20px));
+  min-width: min(calc(264px * var(--axia-fs,1)), calc(100vw - 20px));
+  min-width: min(calc(264px * var(--axia-fs,1)), calc(100dvw - 20px));
   max-width: calc(100vw - 20px);
   max-width: calc(100dvw - 20px);
   overflow-y: auto;
@@ -154,9 +154,9 @@ interface CacheBillingView {
 /** 小节标题：色块 + 默认大字（标题层级，子项一律小字），renderBill 与 renderChart 共用。 */
 function secHead(doc: Document, color: string, text: string): HTMLElement {
   const head = doc.createElement('div')
-  head.className = 'meowcb_sechead'
+  head.className = 'axia_sechead'
   const sw = doc.createElement('span')
-  sw.className = 'meowcb_secheadsw'
+  sw.className = 'axia_secheadsw'
   sw.style.background = color
   head.appendChild(sw)
   head.appendChild(doc.createTextNode(text))
@@ -192,7 +192,7 @@ function renderBill(bill: HTMLElement): void {
 
   if (view.available !== true) {
     const empty = doc.createElement('div')
-    empty.className = 'meowcb_foot'
+    empty.className = 'axia_foot'
     empty.textContent = '缓存账单：本会话暂无 Token 用量'
     put(empty)
     return
@@ -206,7 +206,7 @@ function renderBill(bill: HTMLElement): void {
   // 未命中价目表的醒目提示行仍在最顶：金额是 flash 价估算，不能穿着精确数据的外衣
   if (view.priceMatched === false) {
     const notice = doc.createElement('div')
-    notice.className = 'meowcb_notice'
+    notice.className = 'axia_notice'
     notice.textContent =
       '［虾算账］当前模型无价格数据，请去设置界面添加。以下为Deepseek价格，仅供参考：'
     put(notice)
@@ -217,18 +217,18 @@ function renderBill(bill: HTMLElement): void {
 
   // 账表：5 列无边框 grid——首列=行标签（列头「消耗(¥)」标货币单位），总价独立一列，右边三列=缓存命中/缓存未命中/输出。金额右对齐，天然对齐不画线。
   const grid = doc.createElement('div')
-  grid.className = 'meowcb_grid'
+  grid.className = 'axia_grid'
   const cell = (className: string, text: string): void => {
     const el = doc.createElement('div')
     el.className = className
     el.textContent = text
     grid.appendChild(el)
   }
-  cell('meowcb_lab', '消耗')
-  cell('meowcb_h', '总价')
+  cell('axia_lab', '消耗')
+  cell('axia_h', '总价')
   const head = (text: string, full: string): void => {
     const el = doc.createElement('div')
-    el.className = 'meowcb_h'
+    el.className = 'axia_h'
     el.textContent = text
     el.title = full
     grid.appendChild(el)
@@ -246,11 +246,11 @@ function renderBill(bill: HTMLElement): void {
   }
   const n = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
   const tableRow = (label: string, total: string, hit: string, miss: string, out: string): void => {
-    cell('meowcb_lab', label)
-    cell('meowcb_v', total)
-    cell('meowcb_v', hit)
-    cell('meowcb_v', miss)
-    cell('meowcb_v', out)
+    cell('axia_lab', label)
+    cell('axia_v', total)
+    cell('axia_v', hit)
+    cell('axia_v', miss)
+    cell('axia_v', out)
   }
   tableRow(
     '当前步',
@@ -292,7 +292,7 @@ function renderBill(bill: HTMLElement): void {
   put(grid)
   if (view.mixedCurrency === true) {
     const mixed = doc.createElement('div')
-    mixed.className = 'meowcb_foot'
+    mixed.className = 'axia_foot'
     mixed.textContent = '本会话含两种币种，已按币种分开合计（元在前、美元在后）'
     put(mixed)
   }
@@ -317,17 +317,17 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     view.tier === 'peak' ? labels.peak : view.tier === 'offPeak' ? labels.offPeak : null
   put(secHead(doc, '#60a5fa', '当前模型统计'))
   const modeline = doc.createElement('div')
-  modeline.className = 'meowcb_modeline'
+  modeline.className = 'axia_modeline'
   modeline.textContent = tierWord ? `${namePart} · ${tierWord}` : namePart
   put(modeline)
 
   const wrap = doc.createElement('div')
-  wrap.className = 'meowcb_chartwrap'
+  wrap.className = 'axia_chartwrap'
 
   // 左列：竖长方形曲线图（仅价目表命中时画——估算步不入曲线）
   if (curve) {
     const col = doc.createElement('div')
-    col.className = 'meowcb_chartcol'
+    col.className = 'axia_chartcol'
 
     const W = 120
     const H = 130
@@ -353,7 +353,7 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
       return node as unknown as SVGElement
     }
 
-    const svg = el('svg', 'meowcb_svg')
+    const svg = el('svg', 'axia_svg')
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`)
 
     // 图例浮在图内左上角（二次增长曲线左上恒空，正好放）——面积图配色块样例，本会话线配线段样例（猫猫 09-02 面积图定稿）
@@ -374,23 +374,23 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
         line.setAttribute('y2', String(cy))
         svg.appendChild(line)
       }
-      const label = el('text', 'meowcb_axlabel')
+      const label = el('text', 'axia_axlabel')
       label.setAttribute('x', '17')
       label.setAttribute('y', String(cy + 3))
       label.textContent = text
       svg.appendChild(label)
     }
-    legendSwatch('block', 'meowcb_avgblock', 24, '平均（总）')
-    legendSwatch('block', 'meowcb_avghitblock', 35, '平均缓存')
-    legendSwatch('line', 'meowcb_cur', 46, '本会话（总）')
+    legendSwatch('block', 'axia_avgblock', 24, '平均（总）')
+    legendSwatch('block', 'axia_avghitblock', 35, '平均缓存')
+    legendSwatch('line', 'axia_cur', 46, '本会话（总）')
 
     // L 形坐标轴：左纵 + 下横，紧凑贴边
-    const axisY = el('line', 'meowcb_axis')
+    const axisY = el('line', 'axia_axis')
     axisY.setAttribute('x1', String(L))
     axisY.setAttribute('y1', String(TOP))
     axisY.setAttribute('x2', String(L))
     axisY.setAttribute('y2', String(H - B))
-    const axisX = el('line', 'meowcb_axis')
+    const axisX = el('line', 'axia_axis')
     axisX.setAttribute('x1', String(L))
     axisX.setAttribute('y1', String(H - B))
     axisX.setAttribute('x2', String(W - R))
@@ -400,7 +400,7 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
 
     // 平均累计面积（步 1..N 稠密）——曲线下填色、不描边（猫猫 09-02 面积图定稿）
     if (curve.avg.length > 0) {
-      const area = el('polygon', 'meowcb_avgarea')
+      const area = el('polygon', 'axia_avgarea')
       const yBase = String(H - B)
       area.setAttribute(
         'points',
@@ -411,7 +411,7 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
 
     // 平均缓存面积（同算法同 x 轴，仅带 hc 数据的步参与；空数组=无数据不画）——叠在总面积上，嵌套关系透色可辨
     if (avgHit.length > 0) {
-      const area = el('polygon', 'meowcb_avghitarea')
+      const area = el('polygon', 'axia_avghitarea')
       const yBase = String(H - B)
       area.setAttribute(
         'points',
@@ -422,10 +422,10 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
 
     // 本会话实际累计曲线（全部精确步，x 落在真实调用序号上，混模型也如实）
     if (curve.cur.length > 0) {
-      const line = el('polyline', 'meowcb_cur')
+      const line = el('polyline', 'axia_cur')
       line.setAttribute('points', curve.cur.map(([n, v]) => `${x(n)},${y(v)}`).join(' '))
       svg.appendChild(line)
-      const dot = el('circle', 'meowcb_dotcur')
+      const dot = el('circle', 'axia_dotcur')
       dot.setAttribute('cx', String(x(curve.cur[curve.cur.length - 1][0])))
       dot.setAttribute('cy', String(y(curve.cur[curve.cur.length - 1][1])))
       dot.setAttribute('r', '2')
@@ -433,11 +433,11 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     }
 
     // Y 轴金额：图内左上角、Y 轴右侧（在 Y 轴高度范围内）；图例两行排其下
-    const yLabel = el('text', 'meowcb_axlabel')
+    const yLabel = el('text', 'axia_axlabel')
     yLabel.setAttribute('x', String(L + 4))
     yLabel.setAttribute('y', '12')
     yLabel.textContent = `¥${formatAmount(ymax)}`
-    const xLabel = el('text', 'meowcb_axlabel')
+    const xLabel = el('text', 'axia_axlabel')
     xLabel.setAttribute('x', String(W - R))
     xLabel.setAttribute('y', String(H - 2))
     xLabel.setAttribute('text-anchor', 'end')
@@ -450,10 +450,10 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
 
   // 右列：两节小节标题=小字加粗无色块（猫猫 09-01 定稿），「缓存」节前空一行
   const side = doc.createElement('div')
-  side.className = 'meowcb_chartside'
+  side.className = 'axia_chartside'
   const subHead = (text: string, gapBefore?: boolean): HTMLElement => {
     const head = doc.createElement('div')
-    head.className = 'meowcb_subhead'
+    head.className = 'axia_subhead'
     if (gapBefore) head.style.marginTop = '14px'
     head.textContent = text
     return head
@@ -462,13 +462,13 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     side.appendChild(subHead('消耗比较'))
     const item = (label: string, hint: string, value: number): void => {
       const row = doc.createElement('div')
-      row.className = 'meowcb_cmplab'
+      row.className = 'axia_cmplab'
       row.title = hint
       const lab = doc.createElement('span')
       lab.textContent = label
       row.appendChild(lab)
       const num = doc.createElement('span')
-      num.className = 'meowcb_cmpv'
+      num.className = 'axia_cmpv'
       num.textContent = `${view.currency === 'USD' ? '$' : '¥'}${formatAmount(value)}`
       row.appendChild(num)
       side.appendChild(row)
@@ -484,13 +484,13 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     side.appendChild(subHead('缓存', true))
     const statRow = (label: string, value: string, hint?: string): void => {
       const row = doc.createElement('div')
-      row.className = 'meowcb_cmplab'
+      row.className = 'axia_cmplab'
       if (hint) row.title = hint
       const lab = doc.createElement('span')
       lab.textContent = label
       row.appendChild(lab)
       const num = doc.createElement('span')
-      num.className = 'meowcb_cmpv'
+      num.className = 'axia_cmpv'
       num.textContent = value
       row.appendChild(num)
       side.appendChild(row)
@@ -543,10 +543,10 @@ function fitPanel(panel: HTMLElement): void {
 
 /** 在官方弹层末尾贴上（或刷新）账单区块。 */
 function ensureBill(panel: HTMLElement): void {
-  let bill = panel.querySelector<HTMLElement>(':scope > .meowcb_bill')
+  let bill = panel.querySelector<HTMLElement>(':scope > .axia_bill')
   if (bill === null) {
     bill = panel.ownerDocument.createElement('div')
-    bill.className = 'meowcb_bill'
+    bill.className = 'axia_bill'
     panel.appendChild(bill)
   }
   renderBill(bill)
@@ -608,8 +608,8 @@ function CacheDataHook(props: any) {
   }, [data])
 
   return React.createElement('span', {
-    'data-meow-cachebilling': 'hook',
-    'data-meowcb-version': 'cmp-31',
+    'data-dsh-axia-cachebilling': 'hook',
+    'data-axia-version': 'cmp-31',
     style: { display: 'none' },
   })
 }
@@ -619,15 +619,15 @@ export const inject = ['slots', 'connection', 'remote', 'remote.llm', 'settingsS
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function apply(ctx: any): void {
   // 版本标记：排障用，每次改动 bump——rev 滞后时看控制台标记就知道浏览器跑的是哪一版
-  console.log('[meow-cachebilling] client bundle: cmp-31')
-  // 字号档位落到 <html> 的 --meow-fs：账单弹层（本文件 CSS）与设置页（settings.ts CSS）一起生效
+  console.log('[dsh-axia-cachebilling] client bundle: cmp-31')
+  // 字号档位落到 <html> 的 --axia-fs：账单弹层（本文件 CSS）与设置页（settings.ts CSS）一起生效
   applyFontScale(readFontScale())
   if (
     typeof document !== 'undefined' &&
     document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null
   ) {
     const tag = document.createElement('style')
-    tag.dataset.plugin = 'meow-cachebilling'
+    tag.dataset.plugin = 'dsh-axia-cachebilling'
     tag.dataset.pluginCss = CSS_ID
     tag.textContent = CSS
     document.head.appendChild(tag)
@@ -640,7 +640,7 @@ export function apply(ctx: any): void {
     const dispose = ctx.slots.register(
       {
         name: 'conversation.input.right',
-        id: 'meow-cachebilling-data-hook',
+        id: 'dsh-axia-cachebilling-data-hook',
         order: 1,
       },
       CacheDataHook,
@@ -653,6 +653,6 @@ export function apply(ctx: any): void {
   try {
     applySettings(ctx)
   } catch (e) {
-    console.warn('[meow-cachebilling] 设置页注册失败（不影响账单）：', e)
+    console.warn('[dsh-axia-cachebilling] 设置页注册失败（不影响账单）：', e)
   }
 }

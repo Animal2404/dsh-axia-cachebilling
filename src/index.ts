@@ -1,5 +1,5 @@
 /**
- * meow-cachebilling — 缓存账单 host 端。
+ * dsh-axia-cachebilling — 缓存账单 host 端。
  *
  * 唯一职责：注册一个 session projection 单元 cacheBilling，盯住最新一次大模型 API 请求的缓存命中 token 数，按价目表折算成金额，随推送帧直推浏览器，零轮询零路由。
  *
@@ -19,10 +19,10 @@ import { z } from 'zod'
 import { defineDomain, domainTable, type KvTable } from '@deepseek-ai/dsh-storage-domain'
 
 /** 插件名，与 cordis.patch.yml 的 name 一致，loader 诊断用。 */
-export const name = 'meow-cachebilling'
+export const name = 'dsh-axia-cachebilling'
 
 /** 设置命名空间：预填层(rates.yml)之上的用户层住这里，与设置页卡片、手编 settings.yaml 三方共用。 */
-const SETTINGS_NS = settingsNamespace('meow-cachebilling')
+const SETTINGS_NS = settingsNamespace('dsh-axia-cachebilling')
 
 /** 必需服务：sessionProjections 由 @deepseek-ai/dsh-session-projection 提供，storageDomain 由 @deepseek-ai/dsh-storage-domain 提供（每步花费历史的落盘层），sessionPersistence 供旧记录迁移读日志。 */
 export const inject = ['sessionProjections', 'storageDomain', 'sessionPersistence']
@@ -223,7 +223,7 @@ function compileMap(raw: Record<string, RawEntry>, label: string): Map<string, R
   for (const [key, item] of Object.entries(raw)) {
     const r = compileEntry(item, `${label} · ${key}`)
     if (r.ok) map.set(key, r.entry)
-    else console.warn(`[meow-cachebilling] ${label} 条目 ${key} 已跳过：${r.error}`)
+    else console.warn(`[dsh-axia-cachebilling] ${label} 条目 ${key} 已跳过：${r.error}`)
   }
   return map
 }
@@ -233,10 +233,10 @@ const PREFILL_RAW: Record<string, RawEntry> = (() => {
   try {
     const file = fileURLToPath(new URL('../rates.yml', import.meta.url))
     const models = ratesFileSchema.parse(parseYaml(readFileSync(file, 'utf8'))).models
-    console.log(`[meow-cachebilling] 预填价目表已加载：rates.yml ${models.length} 条`)
+    console.log(`[dsh-axia-cachebilling] 预填价目表已加载：rates.yml ${models.length} 条`)
     return Object.fromEntries(models.map((e) => [entryKey(e), e]))
   } catch (e) {
-    console.warn(`[meow-cachebilling] rates.yml 读取失败，回退内置默认价目表：${e instanceof Error ? e.message : String(e)}`)
+    console.warn(`[dsh-axia-cachebilling] rates.yml 读取失败，回退内置默认价目表：${e instanceof Error ? e.message : String(e)}`)
     return Object.fromEntries(RATE_DEFAULTS_RAW.models.map((e) => [entryKey(e), e]))
   }
 })()
@@ -264,9 +264,9 @@ function recompileMerged(composed: unknown): void {
       const fallback = COMPILED_PREFILL.get(key)
       if (fallback) {
         map.set(key, fallback)
-        console.warn(`[meow-cachebilling] settings 条目 ${key} 已跳过（回落预填）：${r.error}`)
+        console.warn(`[dsh-axia-cachebilling] settings 条目 ${key} 已跳过（回落预填）：${r.error}`)
       } else {
-        console.warn(`[meow-cachebilling] settings 条目 ${key} 已跳过：${r.error}`)
+        console.warn(`[dsh-axia-cachebilling] settings 条目 ${key} 已跳过：${r.error}`)
       }
     }
   }
@@ -656,7 +656,7 @@ function installHistoryRecorder(ctx: any, table: KvTable<string, HistoryRecord>)
       const createdAt =
         typeof session.header?.createdAt === 'number' ? session.header.createdAt : Date.now()
       const warn = (what: string, e: unknown): void => {
-        console.warn(`[meow-cachebilling] 历史落盘失败（不影响账单）：${what}`, e)
+        console.warn(`[dsh-axia-cachebilling] 历史落盘失败（不影响账单）：${what}`, e)
       }
       const gen = state.gen
       const recordId = gen === 0 ? String(session.id) : `${session.id}#${gen}`
@@ -705,7 +705,7 @@ function installHistoryRecorder(ctx: any, table: KvTable<string, HistoryRecord>)
           })
       }
     } catch (e) {
-      console.warn('[meow-cachebilling] 历史读取失败（不影响账单）：', e)
+      console.warn('[dsh-axia-cachebilling] 历史读取失败（不影响账单）：', e)
     }
   }
   ctx.on('session/event', (session: any, event: any) => {
@@ -750,7 +750,7 @@ function installHistoryRecorder(ctx: any, table: KvTable<string, HistoryRecord>)
       for (const timer of timers.values()) clearTimeout(timer)
       timers.clear()
     },
-    'meow-cachebilling.historyTimers',
+    'dsh-axia-cachebilling.historyTimers',
   )
 }
 
@@ -825,12 +825,12 @@ async function migrateLegacyRecords(ctx: any, table: KvTable<string, HistoryReco
       }
       historyVersion += 1
       migrated += 1
-      console.log(`[meow-cachebilling] 旧记录已按压缩换代拆分：${id}（gen ${state.gen}）`)
+      console.log(`[dsh-axia-cachebilling] 旧记录已按压缩换代拆分：${id}（gen ${state.gen}）`)
     } catch (e) {
-      console.warn(`[meow-cachebilling] 旧记录迁移失败（保留原样，下次启动重试）：${id}`, e)
+      console.warn(`[dsh-axia-cachebilling] 旧记录迁移失败（保留原样，下次启动重试）：${id}`, e)
     }
   }
-  console.log(`[meow-cachebilling] 历史记录迁移完成：${migrated}/${targets.length}`)
+  console.log(`[dsh-axia-cachebilling] 历史记录迁移完成：${migrated}/${targets.length}`)
 }
 
 /** 缓存失效判定：发生过缓存写入。写入即失效，官方不报写入，多数路由为 false。 */
@@ -1445,7 +1445,7 @@ export function apply(ctx: any, _config: any): void {
       },
     })
   } catch (e) {
-    console.warn('[meow-cachebilling] 设置命名空间注册失败（账单继续使用预填层）：', e)
+    console.warn('[dsh-axia-cachebilling] 设置命名空间注册失败（账单继续使用预填层）：', e)
   }
 
   // ── 每步花费历史：开域 + 录盘（曲线块的数据底座，失败只降级不炸）──
@@ -1459,15 +1459,15 @@ export function apply(ctx: any, _config: any): void {
           historyTable = null
           void domain.close()
         },
-        'meow-cachebilling.historyDomain',
+        'dsh-axia-cachebilling.historyDomain',
       )
       installHistoryRecorder(ctx, table)
       // 旧记录迁移（v6 时代的压缩两段连记 → 按日志里的 compaction/summary 拆代），逐条 fail-soft
       void migrateLegacyRecords(ctx, table)
-      console.log('[meow-cachebilling] 历史域已打开：meow_cachebilling')
+      console.log('[dsh-axia-cachebilling] 历史域已打开：meow_cachebilling')
     })
     .catch((e: unknown) => {
-      console.warn('[meow-cachebilling] 历史域打开失败（曲线块降级，账单不受影响）：', e)
+      console.warn('[dsh-axia-cachebilling] 历史域打开失败（曲线块降级，账单不受影响）：', e)
     })
 }
 

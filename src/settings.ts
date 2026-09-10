@@ -1,11 +1,11 @@
 /**
- * meow-cachebilling — 设置页模块（虾算账）。
+ * dsh-axia-cachebilling — 设置页模块（虾算账）。
  *
  * 独立模块：只管设置页的显示与读写，不掺和账单渲染；由 client.ts 引入（一行 applySettings(ctx)，失败仅警告不影响账单）。
  * 形态：设置页顶级分区（settings.section，与「通用」「模型」「插件」平级的独立标签页）。
  * 2026-08-30 猫猫拍板「我们需要在设置加个标签页，不是把信息加到别人的标签页里」——由旧形态（settings.plugin.item 卡片，住在官方插件 tab）升级而来。
  * 契约照官方 settings.section（ui-settings-general / ui-settings-models 同款）：
- *   - host 半身（index.ts）用 installSettingsSection 注册命名空间 meow-cachebilling，base = 包根 rates.yml 预填层（不变）
+ *   - host 半身（index.ts）用 installSettingsSection 注册命名空间 dsh-axia-cachebilling，base = 包根 rates.yml 预填层（不变）
  *   - 浏览器半身挂 settings.section（list slot：id + order + label），整页渲染价目表
  *   - 快照三视图：value(合成) / base(预填) / user(用户覆盖)；scope.set(field, value) 写用户层、scope.unset(field) 清回预填
  *   - 双层语义：key 存在于 user 层即覆盖预填条目；「恢复预填」= unset；自定义条目删除 = unset
@@ -16,15 +16,15 @@ import * as React from 'react'
 import { loadPriceCatalog, lookupCatalog, serializeCatalogWhen, type CatalogMatch, type PriceCatalog } from './prices'
 
 const SETTINGS_NS = 'meow-cachebilling'
-const CSS_ID = 'meow-cachebilling-settings-css'
+const CSS_ID = 'dsh-axia-cachebilling-settings-css'
 
 // ── 字号档位（大屏 / 远距离阅读）─────────────────────────────────────────────
 //
 // 账单弹层原本 9–10px、设置页 11.5–13px：32 寸 4K 屏在一米外用眼睛读会吃力。
-// 给四档字号，写进 <html> 的 --meow-fs：账单弹层按它做 calc 缩放，设置页按它整体 zoom，
+// 给四档字号，写进 <html> 的 --axia-fs：账单弹层按它做 calc 缩放，设置页按它整体 zoom，
 // 两边一起变大；存 localStorage（跟着浏览器走，不需要动 DSH 设置）。
 
-const FONT_SCALE_KEY = 'meowcb-font-scale'
+const FONT_SCALE_KEY = 'axia-font-scale'
 const DEFAULT_FONT_SCALE = 1.5
 export const FONT_SCALES: Array<{ value: number; label: string }> = [
   { value: 1, label: '标准' },
@@ -45,7 +45,7 @@ export function readFontScale(): number {
 
 export function applyFontScale(value: number): void {
   try {
-    document.documentElement.style.setProperty('--meow-fs', String(value))
+    document.documentElement.style.setProperty('--axia-fs', String(value))
     localStorage.setItem(FONT_SCALE_KEY, String(value))
   } catch {
     /* 忽略：取不到就维持默认档 */
@@ -53,75 +53,75 @@ export function applyFontScale(value: number): void {
 }
 
 const CSS = `
-.meowcb_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:min(calc(820px / var(--meow-fs,1)),100%);padding:4px 0;zoom:var(--meow-fs,1)}
+.axia_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:min(calc(820px / var(--axia-fs,1)),100%);padding:4px 0;zoom:var(--axia-fs,1)}
 /* 自带 border-box：DSH 外壳不重置盒模型，缺了它 width:100% 的输入框会撑破网格、互相压边 */
-.meowcb_set_page,.meowcb_set_page *{box-sizing:border-box}
-.meowcb_set_head{display:flex;flex-direction:column;gap:4px}
-.meowcb_set_title{font-size:17px;font-weight:650;letter-spacing:.2px;margin:0}
-.meowcb_set_subtitle{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.6;margin:0}
-.meowcb_set_card{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:12px;display:flex;flex-direction:column;gap:10px;padding:14px}
-.meowcb_set_legend{align-items:center;color:var(--dsw-alias-label-caption);display:flex;flex-wrap:wrap;font-size:12px;gap:6px 10px;line-height:1.6}
-.meowcb_set_legend b{color:var(--dsw-alias-label-secondary);font-weight:600}
-.meowcb_set_toolbar{align-items:center;display:flex;flex-wrap:wrap;gap:8px}
-.meowcb_set_count{color:var(--dsw-alias-label-caption);font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto}
-.meowcb_set_btn{align-items:center;background:transparent;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-secondary);cursor:pointer;display:inline-flex;font-size:12.5px;gap:4px;padding:5px 11px;transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
-.meowcb_set_btn:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}
-.meowcb_set_btn:disabled{cursor:default;opacity:.5}
+.axia_set_page,.axia_set_page *{box-sizing:border-box}
+.axia_set_head{display:flex;flex-direction:column;gap:4px}
+.axia_set_title{font-size:17px;font-weight:650;letter-spacing:.2px;margin:0}
+.axia_set_subtitle{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.6;margin:0}
+.axia_set_card{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:12px;display:flex;flex-direction:column;gap:10px;padding:14px}
+.axia_set_legend{align-items:center;color:var(--dsw-alias-label-caption);display:flex;flex-wrap:wrap;font-size:12px;gap:6px 10px;line-height:1.6}
+.axia_set_legend b{color:var(--dsw-alias-label-secondary);font-weight:600}
+.axia_set_toolbar{align-items:center;display:flex;flex-wrap:wrap;gap:8px}
+.axia_set_count{color:var(--dsw-alias-label-caption);font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto}
+.axia_set_btn{align-items:center;background:transparent;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-secondary);cursor:pointer;display:inline-flex;font-size:12.5px;gap:4px;padding:5px 11px;transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
+.axia_set_btn:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}
+.axia_set_btn:disabled{cursor:default;opacity:.5}
 /* 主按钮用自己的品牌蓝：--dsw-alias-button-primary-fill 在深色主题里是白色，配白字会白底白字 */
-.meowcb_set_btn_primary{background:#4D6BFE;border-color:transparent;color:#fff;font-weight:600}
-.meowcb_set_btn_primary:hover{background:#4D6BFE;color:#fff;filter:brightness(1.12)}
-.meowcb_set_btn_danger:hover{border-color:#f43f5e;color:#f43f5e}
-.meowcb_set_btn_mini{font-size:12px;padding:3px 8px}
-.meowcb_set_group{display:flex;flex-direction:column;gap:6px}
-.meowcb_set_grouphead{align-items:center;color:var(--dsw-alias-label-caption);display:flex;font-size:11.5px;gap:6px;letter-spacing:.3px;padding:2px 2px 0}
-.meowcb_set_row{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;cursor:pointer;display:flex;gap:10px;padding:9px 12px;transition:background .15s,border-color .15s}
-.meowcb_set_row:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2)}
-.meowcb_set_rowmain{display:flex;flex-direction:column;gap:2px;min-width:0}
-.meowcb_set_model{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.meowcb_set_ver{color:var(--dsw-alias-label-caption);font-size:11.5px}
-.meowcb_set_spacer{flex:1}
-.meowcb_set_chev{color:var(--dsw-alias-label-caption);flex:none;font-size:15px;line-height:1}
-.meowcb_set_badge{border-radius:999px;font-size:11px;line-height:17px;padding:0 8px;white-space:nowrap}
-.meowcb_set_badge_prefill{background:color-mix(in srgb,#4D6BFE 18%,transparent);color:#8AA0FF}
-.meowcb_set_badge_override{background:color-mix(in srgb,#f59e0b 18%,transparent);color:#F0A63A}
-.meowcb_set_badge_custom{background:color-mix(in srgb,#34d399 18%,transparent);color:#34d399}
-.meowcb_set_badge_tier{background:color-mix(in srgb,currentColor 9%,transparent);color:var(--dsw-alias-label-secondary)}
-.meowcb_set_editor{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;display:flex;flex-direction:column;gap:10px;padding:12px}
-.meowcb_set_grid{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
-.meowcb_set_field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.meowcb_set_fieldrow{align-items:center;display:flex;gap:6px;min-width:0}
-.meowcb_set_label{color:var(--dsw-alias-label-caption);flex:none;font-size:11.5px}
-.meowcb_set_input{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;min-width:0;padding:5px 9px;transition:border-color .15s}
-.meowcb_set_input:focus{border-color:var(--dsw-alias-border-l2);outline:none}
-.meowcb_set_input::placeholder{color:var(--dsw-alias-label-caption);opacity:.7}
-.meowcb_set_input_grow{flex:1;min-width:0}
+.axia_set_btn_primary{background:#4D6BFE;border-color:transparent;color:#fff;font-weight:600}
+.axia_set_btn_primary:hover{background:#4D6BFE;color:#fff;filter:brightness(1.12)}
+.axia_set_btn_danger:hover{border-color:#f43f5e;color:#f43f5e}
+.axia_set_btn_mini{font-size:12px;padding:3px 8px}
+.axia_set_group{display:flex;flex-direction:column;gap:6px}
+.axia_set_grouphead{align-items:center;color:var(--dsw-alias-label-caption);display:flex;font-size:11.5px;gap:6px;letter-spacing:.3px;padding:2px 2px 0}
+.axia_set_row{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;cursor:pointer;display:flex;gap:10px;padding:9px 12px;transition:background .15s,border-color .15s}
+.axia_set_row:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2)}
+.axia_set_rowmain{display:flex;flex-direction:column;gap:2px;min-width:0}
+.axia_set_model{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.axia_set_ver{color:var(--dsw-alias-label-caption);font-size:11.5px}
+.axia_set_spacer{flex:1}
+.axia_set_chev{color:var(--dsw-alias-label-caption);flex:none;font-size:15px;line-height:1}
+.axia_set_badge{border-radius:999px;font-size:11px;line-height:17px;padding:0 8px;white-space:nowrap}
+.axia_set_badge_prefill{background:color-mix(in srgb,#4D6BFE 18%,transparent);color:#8AA0FF}
+.axia_set_badge_override{background:color-mix(in srgb,#f59e0b 18%,transparent);color:#F0A63A}
+.axia_set_badge_custom{background:color-mix(in srgb,#34d399 18%,transparent);color:#34d399}
+.axia_set_badge_tier{background:color-mix(in srgb,currentColor 9%,transparent);color:var(--dsw-alias-label-secondary)}
+.axia_set_editor{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;display:flex;flex-direction:column;gap:10px;padding:12px}
+.axia_set_grid{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.axia_set_field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.axia_set_fieldrow{align-items:center;display:flex;gap:6px;min-width:0}
+.axia_set_label{color:var(--dsw-alias-label-caption);flex:none;font-size:11.5px}
+.axia_set_input{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;min-width:0;padding:5px 9px;transition:border-color .15s}
+.axia_set_input:focus{border-color:var(--dsw-alias-border-l2);outline:none}
+.axia_set_input::placeholder{color:var(--dsw-alias-label-caption);opacity:.7}
+.axia_set_input_grow{flex:1;min-width:0}
 /* 用 DSH 自己的字体（用户要求别改字体），只给数字加等宽数字特性 */
-.meowcb_set_input_mono{font-variant-numeric:tabular-nums}
-.meowcb_set_input_err{border-color:#f43f5e}
-.meowcb_set_select{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;max-width:100%;min-width:0;padding:5px 8px}
-.meowcb_set_select option{background:var(--dsw-alias-bg-layer-2,#26262b);color:var(--dsw-alias-label-primary,#eee)}
-.meowcb_set_select:disabled{opacity:.6}
-body[data-ds-dark-theme] .meowcb_set_input{color-scheme:dark}
-body[data-ds-dark-theme] .meowcb_set_select{color-scheme:dark}
-.meowcb_set_prices{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;display:flex;flex-direction:column;gap:8px;padding:10px}
-.meowcb_set_prices_head{align-items:center;display:flex;gap:6px}
-.meowcb_set_prices_title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}
-.meowcb_set_unit{color:var(--dsw-alias-label-caption);font-size:11px;margin-left:auto}
-.meowcb_set_pricerow{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
-.meowcb_set_pricecell{display:flex;flex-direction:column;gap:3px;min-width:0}
-.meowcb_set_pricenum{font-variant-numeric:tabular-nums;width:100%}
-.meowcb_set_seg{background:color-mix(in srgb,currentColor 6%,transparent);border-radius:8px;display:inline-flex;gap:2px;padding:2px}
-.meowcb_set_segbtn{background:transparent;border:0;border-radius:6px;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:12.5px;padding:4px 12px;transition:background .15s,color .15s}
-.meowcb_set_segbtn:hover{color:var(--dsw-alias-label-primary)}
-.meowcb_set_segbtn_on{background:var(--dsw-alias-bg-layer-2,#2c2c2e);color:var(--dsw-alias-label-primary);font-weight:600}
-.meowcb_set_note{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.5;margin:0}
-.meowcb_set_err{color:#f43f5e;font-size:12px;line-height:1.5;margin:0;white-space:pre-wrap}
-.meowcb_set_muted{color:var(--dsw-alias-label-caption);font-size:12px}
-.meowcb_set_actions{align-items:center;display:flex;gap:8px}
-.meowcb_set_hint{color:var(--dsw-alias-label-caption);font-size:11.5px;margin-left:auto}
+.axia_set_input_mono{font-variant-numeric:tabular-nums}
+.axia_set_input_err{border-color:#f43f5e}
+.axia_set_select{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;max-width:100%;min-width:0;padding:5px 8px}
+.axia_set_select option{background:var(--dsw-alias-bg-layer-2,#26262b);color:var(--dsw-alias-label-primary,#eee)}
+.axia_set_select:disabled{opacity:.6}
+body[data-ds-dark-theme] .axia_set_input{color-scheme:dark}
+body[data-ds-dark-theme] .axia_set_select{color-scheme:dark}
+.axia_set_prices{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;display:flex;flex-direction:column;gap:8px;padding:10px}
+.axia_set_prices_head{align-items:center;display:flex;gap:6px}
+.axia_set_prices_title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}
+.axia_set_unit{color:var(--dsw-alias-label-caption);font-size:11px;margin-left:auto}
+.axia_set_pricerow{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.axia_set_pricecell{display:flex;flex-direction:column;gap:3px;min-width:0}
+.axia_set_pricenum{font-variant-numeric:tabular-nums;width:100%}
+.axia_set_seg{background:color-mix(in srgb,currentColor 6%,transparent);border-radius:8px;display:inline-flex;gap:2px;padding:2px}
+.axia_set_segbtn{background:transparent;border:0;border-radius:6px;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:12.5px;padding:4px 12px;transition:background .15s,color .15s}
+.axia_set_segbtn:hover{color:var(--dsw-alias-label-primary)}
+.axia_set_segbtn_on{background:var(--dsw-alias-bg-layer-2,#2c2c2e);color:var(--dsw-alias-label-primary);font-weight:600}
+.axia_set_note{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.5;margin:0}
+.axia_set_err{color:#f43f5e;font-size:12px;line-height:1.5;margin:0;white-space:pre-wrap}
+.axia_set_muted{color:var(--dsw-alias-label-caption);font-size:12px}
+.axia_set_actions{align-items:center;display:flex;gap:8px}
+.axia_set_hint{color:var(--dsw-alias-label-caption);font-size:11.5px;margin-left:auto}
 @media (max-width:560px){
-  .meowcb_set_card{padding:12px}
-  .meowcb_set_grid{grid-template-columns:minmax(0,1fr)}
+  .axia_set_card{padding:12px}
+  .axia_set_grid{grid-template-columns:minmax(0,1fr)}
 }
 `
 
@@ -332,9 +332,9 @@ const el = React.createElement
 
 /** 表单字段：标签在上、控件在下的竖排小格子。 */
 const field = (labelText: string, child: any): any =>
-  el('div', { className: 'meowcb_set_field' }, el('span', { className: 'meowcb_set_label' }, labelText), child)
+  el('div', { className: 'axia_set_field' }, el('span', { className: 'axia_set_label' }, labelText), child)
 
-/** 三格价格输入（缓存命中 / 缓存未命中 / 输出）；标题与单位由外层的 .meowcb_set_prices 卡片给。 */
+/** 三格价格输入（缓存命中 / 缓存未命中 / 输出）；标题与单位由外层的 .axia_set_prices 卡片给。 */
 function PriceInputs(props: { d: Draft; set: (patch: Partial<Draft>) => void; mode: 'flat' | 'peak' | 'valley' }): any {
   const { d, set, mode } = props
   const cells: Array<[string, keyof Draft]> =
@@ -357,14 +357,14 @@ function PriceInputs(props: { d: Draft; set: (patch: Partial<Draft>) => void; mo
           ]
   return el(
     'div',
-    { className: 'meowcb_set_pricerow' },
+    { className: 'axia_set_pricerow' },
     cells.map(([text, key]) =>
       el(
         'div',
-        { key: String(key), className: 'meowcb_set_pricecell' },
-        el('span', { className: 'meowcb_set_label' }, text),
+        { key: String(key), className: 'axia_set_pricecell' },
+        el('span', { className: 'axia_set_label' }, text),
         el('input', {
-          className: 'meowcb_set_input meowcb_set_pricenum',
+          className: 'axia_set_input axia_set_pricenum',
           value: d[key] as string,
           onChange: (e: any) => set({ [key]: e.target.value } as Partial<Draft>),
           inputMode: 'decimal',
@@ -769,13 +769,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   }
 
   if (snap.status === 'loading') {
-    return el('div', { className: 'meowcb_set_card' }, el('span', { className: 'meowcb_set_muted' }, '价目表加载中…'))
+    return el('div', { className: 'axia_set_card' }, el('span', { className: 'axia_set_muted' }, '价目表加载中…'))
   }
   if (snap.status === 'unavailable') {
     return el(
       'div',
-      { className: 'meowcb_set_card' },
-      el('span', { className: 'meowcb_set_muted' }, '当前连接不支持设置写入（仅本机回环连接可编辑）。'),
+      { className: 'axia_set_card' },
+      el('span', { className: 'axia_set_muted' }, '当前连接不支持设置写入（仅本机回环连接可编辑）。'),
     )
   }
 
@@ -793,18 +793,18 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
       ? null
       : el(
           'div',
-          { className: 'meowcb_set_editor' },
+          { className: 'axia_set_editor' },
           el(
             'div',
-            { className: 'meowcb_set_grid' },
+            { className: 'axia_set_grid' },
             field(
               '供应商',
               el(
                 'div',
-                { className: 'meowcb_set_fieldrow' },
+                { className: 'axia_set_fieldrow' },
                 manual.provider
                   ? el('input', {
-                      className: 'meowcb_set_input meowcb_set_input_grow meowcb_set_input_mono',
+                      className: 'axia_set_input axia_set_input_grow axia_set_input_mono',
                       value: draft.provider,
                       onChange: (e: any) => pickProvider(e.target.value),
                       placeholder: 'deepseek-official，留空 = 通配',
@@ -812,7 +812,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   : el(
                       'select',
                       {
-                        className: 'meowcb_set_select meowcb_set_input_grow',
+                        className: 'axia_set_select axia_set_input_grow',
                         value: providerSelectValue,
                         disabled: catalog.status !== 'ready',
                         onChange: (e: any) => pickProvider(e.target.value),
@@ -827,7 +827,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   'button',
                   {
                     type: 'button',
-                    className: 'meowcb_set_btn meowcb_set_btn_mini',
+                    className: 'axia_set_btn axia_set_btn_mini',
                     onClick: () => setManual((m) => ({ ...m, provider: !m.provider })),
                   },
                   manual.provider ? '下拉' : '手填',
@@ -836,7 +836,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   'button',
                   {
                     type: 'button',
-                    className: 'meowcb_set_btn meowcb_set_btn_mini',
+                    className: 'axia_set_btn axia_set_btn_mini',
                     disabled: catalog.status === 'loading',
                     onClick: () => reloadCatalog(),
                   },
@@ -848,10 +848,10 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
               '模型',
               el(
                 'div',
-                { className: 'meowcb_set_fieldrow' },
+                { className: 'axia_set_fieldrow' },
                 manual.model || modelOptions.length === 0
                   ? el('input', {
-                      className: 'meowcb_set_input meowcb_set_input_grow meowcb_set_input_mono',
+                      className: 'axia_set_input axia_set_input_grow axia_set_input_mono',
                       value: draft.model,
                       onChange: (e: any) => {
                     modelTouched.current = true
@@ -862,7 +862,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   : el(
                       'select',
                       {
-                        className: 'meowcb_set_select meowcb_set_input_grow',
+                        className: 'axia_set_select axia_set_input_grow',
                         value: modelOptions.includes(draft.model) ? draft.model : '',
                         onChange: (e: any) => {
                     modelTouched.current = true
@@ -876,7 +876,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   'button',
                   {
                     type: 'button',
-                    className: 'meowcb_set_btn meowcb_set_btn_mini',
+                    className: 'axia_set_btn axia_set_btn_mini',
                     disabled: probe.busy,
                     onClick: () => void fetchModels(),
                   },
@@ -886,7 +886,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   'button',
                   {
                     type: 'button',
-                    className: 'meowcb_set_btn meowcb_set_btn_mini',
+                    className: 'axia_set_btn axia_set_btn_mini',
                     onClick: () => setManual((m) => ({ ...m, model: !m.model })),
                   },
                   manual.model ? '下拉' : '手填',
@@ -897,7 +897,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
           field(
             '版本名（可选，只用于显示）',
             el('input', {
-              className: 'meowcb_set_input meowcb_set_input_mono',
+              className: 'axia_set_input axia_set_input_mono',
               value: draft.label,
               onChange: (e: any) => set({ label: e.target.value }),
               placeholder: 'DeepSeek-V4.1-Flash',
@@ -905,16 +905,16 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
           ),
           el(
             'div',
-            { className: 'meowcb_set_fieldrow' },
-            el('span', { className: 'meowcb_set_label' }, '计价方式'),
+            { className: 'axia_set_fieldrow' },
+            el('span', { className: 'axia_set_label' }, '计价方式'),
             el(
               'div',
-              { className: 'meowcb_set_seg' },
+              { className: 'axia_set_seg' },
               el(
                 'button',
                 {
                   type: 'button',
-                  className: 'meowcb_set_segbtn' + (draft.isPeak ? '' : ' meowcb_set_segbtn_on'),
+                  className: 'axia_set_segbtn' + (draft.isPeak ? '' : ' axia_set_segbtn_on'),
                   onClick: () => set({ isPeak: false }),
                 },
                 '一口价',
@@ -923,21 +923,21 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                 'button',
                 {
                   type: 'button',
-                  className: 'meowcb_set_segbtn' + (draft.isPeak ? ' meowcb_set_segbtn_on' : ''),
+                  className: 'axia_set_segbtn' + (draft.isPeak ? ' axia_set_segbtn_on' : ''),
                   onClick: () => set({ isPeak: true }),
                 },
                 '峰谷价',
               ),
             ),
-            el('span', { className: 'meowcb_set_label', style: { marginLeft: '10px' } }, '币种'),
+            el('span', { className: 'axia_set_label', style: { marginLeft: '10px' } }, '币种'),
             el(
               'div',
-              { className: 'meowcb_set_seg' },
+              { className: 'axia_set_seg' },
               el(
                 'button',
                 {
                   type: 'button',
-                  className: 'meowcb_set_segbtn' + (draft.currency === 'USD' ? '' : ' meowcb_set_segbtn_on'),
+                  className: 'axia_set_segbtn' + (draft.currency === 'USD' ? '' : ' axia_set_segbtn_on'),
                   onClick: () => set({ currency: 'CNY' }),
                 },
                 '元 ¥',
@@ -946,7 +946,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                 'button',
                 {
                   type: 'button',
-                  className: 'meowcb_set_segbtn' + (draft.currency === 'USD' ? ' meowcb_set_segbtn_on' : ''),
+                  className: 'axia_set_segbtn' + (draft.currency === 'USD' ? ' axia_set_segbtn_on' : ''),
                   onClick: () => set({ currency: 'USD' }),
                 },
                 '美元 $',
@@ -956,13 +956,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
           draft.isPeak
             ? el(
                 'div',
-                { className: 'meowcb_set_grid' },
+                { className: 'axia_set_grid' },
                 field(
                   '峰时段（[天][时段]，多组用 + 连接）',
                   el('input', {
                     className:
-                      'meowcb_set_input meowcb_set_input_mono' +
-                      (tried && !draft.whenText.trim() ? ' meowcb_set_input_err' : ''),
+                      'axia_set_input axia_set_input_mono' +
+                      (tried && !draft.whenText.trim() ? ' axia_set_input_err' : ''),
                     value: draft.whenText,
                     onChange: (e: any) => set({ whenText: e.target.value }),
                     placeholder: '[mon-fri][09:00-12:00, 14:00-18:00]',
@@ -971,15 +971,15 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                 tzFor(draft.provider).auto
                   ? el(
                       'div',
-                      { className: 'meowcb_set_field' },
-                      el('span', { className: 'meowcb_set_label' }, '时区'),
-                      el('span', { className: 'meowcb_set_muted' }, `自动：${tzFor(draft.provider).tz}`),
+                      { className: 'axia_set_field' },
+                      el('span', { className: 'axia_set_label' }, '时区'),
+                      el('span', { className: 'axia_set_muted' }, `自动：${tzFor(draft.provider).tz}`),
                     )
                   : field(
                       '时区（IANA）',
                       el('input', {
                         className:
-                          'meowcb_set_input meowcb_set_input_mono' + (tried && !draft.timezone.trim() ? ' meowcb_set_input_err' : ''),
+                          'axia_set_input axia_set_input_mono' + (tried && !draft.timezone.trim() ? ' axia_set_input_err' : ''),
                         value: draft.timezone,
                         onChange: (e: any) => set({ timezone: e.target.value }),
                         placeholder: 'Asia/Shanghai',
@@ -989,13 +989,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
             : null,
           el(
             'div',
-            { className: 'meowcb_set_fieldrow' },
-            el('span', { className: 'meowcb_set_label' }, '价格目录'),
+            { className: 'axia_set_fieldrow' },
+            el('span', { className: 'axia_set_label' }, '价格目录'),
             el(
               'button',
               {
                 type: 'button',
-                className: 'meowcb_set_btn meowcb_set_btn_mini',
+                className: 'axia_set_btn axia_set_btn_mini',
                 onClick: () => void refreshPrices(false, true),
               },
               '套用目录价',
@@ -1004,49 +1004,49 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
               'button',
               {
                 type: 'button',
-                className: 'meowcb_set_btn meowcb_set_btn_mini',
+                className: 'axia_set_btn axia_set_btn_mini',
                 disabled: prices.status === 'loading',
                 onClick: () => void refreshPrices(true, true),
               },
               prices.status === 'loading' ? '拉取中…' : '刷新价格',
             ),
             prices.catalog !== null
-              ? el('span', { className: 'meowcb_set_hint' }, `目录更新于 ${prices.catalog.updatedAt}`)
+              ? el('span', { className: 'axia_set_hint' }, `目录更新于 ${prices.catalog.updatedAt}`)
               : null,
           ),
-          prices.note ? el('p', { className: 'meowcb_set_note' }, prices.note) : null,
+          prices.note ? el('p', { className: 'axia_set_note' }, prices.note) : null,
           el(
             'div',
-            { className: 'meowcb_set_prices' },
+            { className: 'axia_set_prices' },
             el(
               'div',
-              { className: 'meowcb_set_prices_head' },
-              el('span', { className: 'meowcb_set_prices_title' }, draft.isPeak ? '峰价' : '价格'),
-              el('span', { className: 'meowcb_set_unit' }, draft.currency === 'USD' ? '美元 / 百万 token' : '元 / 百万 token'),
+              { className: 'axia_set_prices_head' },
+              el('span', { className: 'axia_set_prices_title' }, draft.isPeak ? '峰价' : '价格'),
+              el('span', { className: 'axia_set_unit' }, draft.currency === 'USD' ? '美元 / 百万 token' : '元 / 百万 token'),
             ),
             el(PriceInputs, { d: draft, set, mode: draft.isPeak ? 'peak' : 'flat' }),
             draft.isPeak
-              ? el('div', { className: 'meowcb_set_prices_head' }, el('span', { className: 'meowcb_set_prices_title' }, '谷价'))
+              ? el('div', { className: 'axia_set_prices_head' }, el('span', { className: 'axia_set_prices_title' }, '谷价'))
               : null,
             draft.isPeak ? el(PriceInputs, { d: draft, set, mode: 'valley' }) : null,
           ),
-          catalog.note || probe.note ? el('p', { className: 'meowcb_set_note' }, probe.note ?? catalog.note) : null,
-          error ? el('div', { className: 'meowcb_set_err' }, error) : null,
+          catalog.note || probe.note ? el('p', { className: 'axia_set_note' }, probe.note ?? catalog.note) : null,
+          error ? el('div', { className: 'axia_set_err' }, error) : null,
           el(
             'div',
-            { className: 'meowcb_set_actions' },
+            { className: 'axia_set_actions' },
             el(
               'button',
-              { type: 'button', className: 'meowcb_set_btn meowcb_set_btn_primary', disabled: busy, onClick: () => void save() },
+              { type: 'button', className: 'axia_set_btn axia_set_btn_primary', disabled: busy, onClick: () => void save() },
               busy ? '保存中…' : '保存',
             ),
-            el('button', { type: 'button', className: 'meowcb_set_btn', disabled: busy, onClick: () => open(null) }, '取消'),
+            el('button', { type: 'button', className: 'axia_set_btn', disabled: busy, onClick: () => open(null) }, '取消'),
             expanded !== null && expanded !== '__new__'
               ? el(
                   'button',
                   {
                     type: 'button',
-                    className: 'meowcb_set_btn meowcb_set_btn_danger',
+                    className: 'axia_set_btn axia_set_btn_danger',
                     disabled: busy,
                     onClick: () => void remove(expanded as string),
                   },
@@ -1054,7 +1054,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                 )
               : null,
             expanded !== null && expanded !== '__new__' && expanded in base
-              ? el('span', { className: 'meowcb_set_hint' }, '编辑预填会生成覆盖')
+              ? el('span', { className: 'axia_set_hint' }, '编辑预填会生成覆盖')
               : null,
           ),
         )
@@ -1066,30 +1066,30 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     const inUser = key in user
     const badge =
       inBase && inUser
-        ? el('span', { className: 'meowcb_set_badge meowcb_set_badge_override' }, '已覆盖')
+        ? el('span', { className: 'axia_set_badge axia_set_badge_override' }, '已覆盖')
         : inUser && !inBase
-          ? el('span', { className: 'meowcb_set_badge meowcb_set_badge_custom' }, '自定义')
-          : el('span', { className: 'meowcb_set_badge meowcb_set_badge_prefill' }, '预填')
+          ? el('span', { className: 'axia_set_badge axia_set_badge_custom' }, '自定义')
+          : el('span', { className: 'axia_set_badge axia_set_badge_prefill' }, '预填')
     if (expanded === key) return editor
     return el(
       'div',
-      { key, className: 'meowcb_set_row', onClick: () => open(key) },
+      { key, className: 'axia_set_row', onClick: () => open(key) },
       el(
         'div',
-        { className: 'meowcb_set_rowmain' },
-        el('span', { className: 'meowcb_set_model' }, entry.model),
+        { className: 'axia_set_rowmain' },
+        el('span', { className: 'axia_set_model' }, entry.model),
         entry.label || entry.currency === 'USD'
           ? el(
               'span',
-              { className: 'meowcb_set_ver' },
+              { className: 'axia_set_ver' },
               [entry.label ?? '', entry.currency === 'USD' ? '美元计价' : ''].filter(Boolean).join(' · '),
             )
           : null,
       ),
-      el('span', { className: 'meowcb_set_spacer' }),
-      el('span', { className: 'meowcb_set_badge meowcb_set_badge_tier' }, entry.peak ? '峰谷' : '一口价'),
+      el('span', { className: 'axia_set_spacer' }),
+      el('span', { className: 'axia_set_badge axia_set_badge_tier' }, entry.peak ? '峰谷' : '一口价'),
       badge,
-      el('span', { className: 'meowcb_set_chev' }, '›'),
+      el('span', { className: 'axia_set_chev' }, '›'),
     )
   }
 
@@ -1111,42 +1111,42 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
 
   return el(
     'div',
-    { className: 'meowcb_set_card' },
+    { className: 'axia_set_card' },
     el(
       'p',
-      { className: 'meowcb_set_legend' },
+      { className: 'axia_set_legend' },
       el('span', null, el('b', null, '预填'), ' 插件自带，跟随版本更新'),
       el('span', null, el('b', null, '你的修改'), ' 存在 DSH 设置里，改完即时生效'),
       el('span', null, el('b', null, '点任意一行'), ' 展开编辑'),
     ),
     !snap.writable
-      ? el('span', { className: 'meowcb_set_muted' }, '当前连接为只读（设置写入仅限本机回环连接）。')
+      ? el('span', { className: 'axia_set_muted' }, '当前连接为只读（设置写入仅限本机回环连接）。')
       : null,
     el(
       'div',
-      { className: 'meowcb_set_toolbar' },
+      { className: 'axia_set_toolbar' },
       el(
         'button',
         {
           type: 'button',
-          className: 'meowcb_set_btn meowcb_set_btn_primary',
+          className: 'axia_set_btn axia_set_btn_primary',
           onClick: () => open('__new__'),
           disabled: expandedIsNew || !snap.writable,
         },
         '＋ 添加条目',
       ),
-      el('span', { className: 'meowcb_set_spacer' }),
-      el('span', { className: 'meowcb_set_label' }, '字号'),
+      el('span', { className: 'axia_set_spacer' }),
+      el('span', { className: 'axia_set_label' }, '字号'),
       el(
         'div',
-        { className: 'meowcb_set_seg' },
+        { className: 'axia_set_seg' },
         FONT_SCALES.map((s) =>
           el(
             'button',
             {
               key: s.value,
               type: 'button',
-              className: 'meowcb_set_segbtn' + (scale === s.value ? ' meowcb_set_segbtn_on' : ''),
+              className: 'axia_set_segbtn' + (scale === s.value ? ' axia_set_segbtn_on' : ''),
               onClick: () => {
                 setScale(s.value)
                 applyFontScale(s.value)
@@ -1156,14 +1156,14 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
           ),
         ),
       ),
-      el('span', { className: 'meowcb_set_count' }, `共 ${total} 条`),
+      el('span', { className: 'axia_set_count' }, `共 ${total} 条`),
     ),
     expandedIsNew ? editor : null,
     ...groups.map((g) =>
       el(
         'div',
-        { key: g.name, className: 'meowcb_set_group' },
-        el('div', { className: 'meowcb_set_grouphead' }, el('span', null, g.name), el('span', null, `· ${g.rows.length}`)),
+        { key: g.name, className: 'axia_set_group' },
+        el('div', { className: 'axia_set_grouphead' }, el('span', null, g.name), el('span', null, `· ${g.rows.length}`)),
         ...g.rows,
       ),
     ),
@@ -1176,7 +1176,7 @@ export function applySettings(ctx: any): void {
   applyFontScale(readFontScale())
   if (typeof document !== 'undefined' && document.querySelector(`style[data-plugin-css="${CSS_ID}"]`) === null) {
     const tag = document.createElement('style')
-    tag.dataset.plugin = 'meow-cachebilling-settings'
+    tag.dataset.plugin = 'dsh-axia-cachebilling-settings'
     tag.dataset.pluginCss = CSS_ID
     tag.textContent = CSS
     document.head.appendChild(tag)
@@ -1204,14 +1204,14 @@ export function applySettings(ctx: any): void {
 function BillingSection(props: { scope: any; remote?: any; settingsScope?: any }): any {
   return el(
     'div',
-    { className: 'meowcb_set_page' },
+    { className: 'axia_set_page' },
     el(
       'div',
-      { className: 'meowcb_set_head' },
-      el('h2', { className: 'meowcb_set_title' }, '虾算账'),
+      { className: 'axia_set_head' },
+      el('h2', { className: 'axia_set_title' }, '虾算账'),
       el(
         'p',
-        { className: 'meowcb_set_subtitle' },
+        { className: 'axia_set_subtitle' },
         '上下文缓存到底花了多少钱。供应商和模型直接从 DSH 已配置的列表里挑，模型可一键拉取清单；改完即时生效，无需重启。',
       ),
     ),
