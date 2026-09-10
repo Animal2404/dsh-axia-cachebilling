@@ -54,7 +54,9 @@ export function applyFontScale(value: number): void {
 }
 
 const CSS = `
-.axia_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:min(calc(820px / var(--axia-fs,1)),100%);padding:4px 0;zoom:var(--axia-fs,1)}
+/* 设置页永远标准大小：字号档位只作用于上下文弹层里的账单（见 client.ts 的 --axia-fs），
+   早先给设置页也加了 zoom 是错的（用户反馈「连插件 UI 都跟着放大缩小」） */
+.axia_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:820px;padding:4px 0}
 /* 自带 border-box：DSH 外壳不重置盒模型，缺了它 width:100% 的输入框会撑破网格、互相压边 */
 .axia_set_page,.axia_set_page *{box-sizing:border-box}
 .axia_set_head{display:flex;flex-direction:column;gap:4px}
@@ -1137,10 +1139,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
         '＋ 添加条目',
       ),
       el('span', { className: 'axia_set_spacer' }),
-      el('span', { className: 'axia_set_label' }, '字号'),
+      el('span', { className: 'axia_set_label' }, '弹层字号'),
       el(
         'div',
-        { className: 'axia_set_seg' },
+        {
+          className: 'axia_set_seg',
+          title: '只放大/缩小上下文弹层里的账单；本设置页永远保持标准大小',
+        },
         FONT_SCALES.map((s) =>
           el(
             'button',
@@ -1157,6 +1162,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
           ),
         ),
       ),
+      el('span', { className: 'axia_set_hint' }, '只影响上下文弹层（账单区），设置页保持标准'),
       el('span', { className: 'axia_set_count' }, `共 ${total} 条`),
     ),
     expandedIsNew ? editor : null,
