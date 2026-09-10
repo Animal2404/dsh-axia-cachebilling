@@ -436,7 +436,7 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     const yLabel = el('text', 'axia_axlabel')
     yLabel.setAttribute('x', String(L + 4))
     yLabel.setAttribute('y', '12')
-    yLabel.textContent = `¥${formatAmount(ymax)}`
+    yLabel.textContent = `${view.currency === 'USD' ? '$' : '¥'}${formatAmount(ymax)}`
     const xLabel = el('text', 'axia_axlabel')
     xLabel.setAttribute('x', String(W - R))
     xLabel.setAttribute('y', String(H - 2))

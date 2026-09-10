@@ -774,12 +774,28 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   if (snap.status === 'loading') {
     return el('div', { className: 'axia_set_card' }, el('span', { className: 'axia_set_muted' }, '价目表加载中…'))
   }
+  // 非回环连接（手机经局域网访问等）：DSH 不回传这份命名空间的值。若确实一个条目都拿不到，
+  // 就把原因说清楚并停在这里——账单弹层不依赖这条通道，手机上照常显示。
   if (snap.status === 'unavailable') {
-    return el(
-      'div',
-      { className: 'axia_set_card' },
-      el('span', { className: 'axia_set_muted' }, '当前连接不支持设置写入（仅本机回环连接可编辑）。'),
-    )
+    const anyKnown =
+      Object.keys((snap.base ?? {}) as Record<string, unknown>).length > 0 ||
+      Object.keys((snap.user ?? {}) as Record<string, unknown>).length > 0
+    if (!anyKnown) {
+      return el(
+        'div',
+        { className: 'axia_set_card' },
+        el(
+          'span',
+          { className: 'axia_set_muted' },
+          '当前连接不是本机回环（例如手机经局域网打开），DSH 不回传价目表内容，所以这里看不到条目。',
+        ),
+        el(
+          'span',
+          { className: 'axia_set_muted' },
+          '在跑 dsh 的那台机器上用 127.0.0.1:3080 打开设置即可查看/编辑；上下文圆环里的账单不受影响，手机上照常显示。',
+        ),
+      )
+    }
   }
 
   const tzFor = (provider: string): { auto: boolean; tz: string } => {
