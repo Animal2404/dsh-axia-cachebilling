@@ -52,6 +52,8 @@ interface RateEntry {
   timezone: string
   /** 预格式化器：从事件时间戳取条目时区的星期与时分 */
   clock: Intl.DateTimeFormat
+  /** 计价币种：CNY（元，缺省）/ USD（美元）。账单按币种分开合计，不混算 */
+  currency: 'CNY' | 'USD'
   kind: 'const' | 'peakvalley'
   /** 一口价行（kind = const） */
   flat?: RateRow
@@ -103,6 +105,8 @@ const entrySchema = z.object({
   model: z.string().min(1),
   /** 人看的模型版本名（如 DeepSeek-V4.1-Flash），只用于设置页显示，不参与匹配 */
   label: z.string().min(1).optional(),
+  /** 计价币种：元或缺省 CNY，美元填 USD（账单按币种分开合计） */
+  currency: z.enum(['CNY', 'USD']).optional(),
   provider: z.string().min(1).optional(),
   timezone: z.string().min(1).optional(),
   peak: z.object({ ...pricesShape, when: whenGroupSchema.array().min(1) }).optional(),
@@ -168,6 +172,7 @@ function compileEntry(raw: RawEntry, label: string): { ok: true; entry: RateEntr
       provider: raw.provider ? raw.provider.toLowerCase() : null,
       timezone,
       clock,
+      currency: raw.currency ?? 'CNY',
       cacheSaving: raw.cacheSaving ?? null,
     }
     if (raw.const) {
@@ -306,17 +311,27 @@ function rateOf(
   provider: string | null,
   model: string | null,
   timeMs: number,
-): { row: RateRow; tier: Tier | null; matched: boolean } {
+): { row: RateRow; tier: Tier | null; matched: boolean; currency: 'CNY' | 'USD' } {
   const key = (model ?? '').toLowerCase()
   const providerKey = provider ? provider.toLowerCase() : null
   const entry = lookupEntry(mergedEntries, providerKey, key)
   if (entry === null) {
     const peak = inPeak(FALLBACK_ENTRY, timeMs)
-    return { row: peak ? FALLBACK_ENTRY.peak! : FALLBACK_ENTRY.valley!, tier: peak ? 'peak' : 'offPeak', matched: false }
+    return {
+      row: peak ? FALLBACK_ENTRY.peak! : FALLBACK_ENTRY.valley!,
+      tier: peak ? 'peak' : 'offPeak',
+      matched: false,
+      currency: FALLBACK_ENTRY.currency,
+    }
   }
-  if (entry.kind === 'const') return { row: entry.flat!, tier: null, matched: true }
+  if (entry.kind === 'const') return { row: entry.flat!, tier: null, matched: true, currency: entry.currency }
   const peak = inPeak(entry, timeMs)
-  return { row: peak ? entry.peak! : entry.valley!, tier: peak ? 'peak' : 'offPeak', matched: true }
+  return {
+    row: peak ? entry.peak! : entry.valley!,
+    tier: peak ? 'peak' : 'offPeak',
+    matched: true,
+    currency: entry.currency,
+  }
 }
 
 const round9 = (n: number): number => Math.round(n * 1e9) / 1e9
@@ -343,6 +358,10 @@ interface Totals {
   missCost: number
   /** 输出金额累计，元 */
   outputCost: number
+  /** 美元条目的三笔累计（币种=USD 进这里，元条目仍在上面三个字段）；老快照没有这段 = 没有美元用量 */
+  usdHitCost?: number
+  usdMissCost?: number
+  usdOutputCost?: number
   /** 输入 token 累计，命中加未命中加写入 */
   inputTokens: number
   /** 缓存命中 token 累计，明细行展示用 */
@@ -369,6 +388,10 @@ interface TurnTotals {
   missCost: number
   /** 输出金额累计 */
   outputCost: number
+  /** 美元条目的三笔累计（币种=USD 进这里） */
+  usdHitCost?: number
+  usdMissCost?: number
+  usdOutputCost?: number
   /** 输入 token 累计，命中加未命中加写入 */
   inputTokens: number
   /** 缓存命中 token 累计，明细行展示用 */
@@ -377,22 +400,50 @@ interface TurnTotals {
   outputTokens: number
 }
 
-/** 按样本模型与事件时刻计算一轮三笔费用＋计价判定，元，round9 防精度漂移。 */
+/** 按样本模型与事件时刻计算一轮三笔费用＋计价判定，round9 防精度漂移；currency = 命中条目的币种。 */
 function computeCosts(sample: Sample): {
   hit: number
   miss: number
   output: number
   tier: Tier | null
   matched: boolean
+  currency: 'CNY' | 'USD'
 } {
-  const { row, tier, matched } = rateOf(sample.provider, sample.model, sample.time)
+  const { row, tier, matched, currency } = rateOf(sample.provider, sample.model, sample.time)
   return {
     hit: round9((sample.cacheReadTokens * row.hit) / 1e6),
     miss: round9((sample.inputTokens * row.miss + sample.cacheWriteTokens * row.write) / 1e6),
     output: round9((sample.outputTokens * row.output) / 1e6),
     tier,
     matched,
+    currency,
   }
+}
+
+/** 一笔费用按币种累加进「会话累计」：美元条目进 usd* 字段，元条目进主字段；delta 可负（替换同一步时回退旧样本）。 */
+function addToTotals(t: Totals, currency: 'CNY' | 'USD', hit: number, miss: number, output: number): Totals {
+  if (currency === 'USD') {
+    return {
+      ...t,
+      usdHitCost: (t.usdHitCost ?? 0) + hit,
+      usdMissCost: (t.usdMissCost ?? 0) + miss,
+      usdOutputCost: (t.usdOutputCost ?? 0) + output,
+    }
+  }
+  return { ...t, cacheHitCost: t.cacheHitCost + hit, missCost: t.missCost + miss, outputCost: t.outputCost + output }
+}
+
+/** 同上，「本轮累计」版本。 */
+function addToTurn(t: TurnTotals, currency: 'CNY' | 'USD', hit: number, miss: number, output: number): TurnTotals {
+  if (currency === 'USD') {
+    return {
+      ...t,
+      usdHitCost: (t.usdHitCost ?? 0) + hit,
+      usdMissCost: (t.usdMissCost ?? 0) + miss,
+      usdOutputCost: (t.usdOutputCost ?? 0) + output,
+    }
+  }
+  return { ...t, hitCost: t.hitCost + hit, missCost: t.missCost + miss, outputCost: t.outputCost + output }
 }
 
 function costOf(sample: Sample): { hit: number; miss: number; output: number } {
@@ -846,6 +897,9 @@ export function apply(ctx: any, _config: any): void {
             hitCost: z.number().nonnegative(),
             missCost: z.number().nonnegative(),
             outputCost: z.number().nonnegative(),
+            usdHitCost: z.number().nonnegative().optional(),
+            usdMissCost: z.number().nonnegative().optional(),
+            usdOutputCost: z.number().nonnegative().optional(),
             inputTokens: z.number().int().nonnegative(),
             cacheReadTokens: z.number().int().nonnegative(),
             outputTokens: z.number().int().nonnegative(),
@@ -855,6 +909,9 @@ export function apply(ctx: any, _config: any): void {
           cacheHitCost: z.number().nonnegative(),
           missCost: z.number().nonnegative(),
           outputCost: z.number().nonnegative(),
+          usdHitCost: z.number().nonnegative().optional(),
+          usdMissCost: z.number().nonnegative().optional(),
+          usdOutputCost: z.number().nonnegative().optional(),
           inputTokens: z.number().int().nonnegative(),
           cacheReadTokens: z.number().int().nonnegative(),
           outputTokens: z.number().int().nonnegative(),
@@ -879,6 +936,8 @@ export function apply(ctx: any, _config: any): void {
             m: z.string().min(1),
             mi: z.number().nonnegative().optional(),
             hc: z.number().nonnegative().optional(),
+            /** 该步的计价币种（老快照没有 = CNY），「读代码」按币种分别合计 */
+            cu: z.enum(['CNY', 'USD']).optional(),
           }),
         ),
         gen: z.number().int().nonnegative(),
@@ -1020,6 +1079,7 @@ export function apply(ctx: any, _config: any): void {
         // 当前轮累计：同 turn 累加，turn 切换重置，同 step 替换扣旧加新。
         const billed = computeCosts(sample)
         const current = { hit: billed.hit, miss: billed.miss, output: billed.output }
+        const currentCurrency = billed.currency
         const writeMiss = isWriteMiss(sample)
         const fullMiss = isFullMiss(sample)
         const sampleInputTokens = sample.inputTokens + sample.cacheReadTokens + sample.cacheWriteTokens
@@ -1035,10 +1095,12 @@ export function apply(ctx: any, _config: any): void {
                 m: historyKey(sample.provider, sample.model, billed.tier),
                 mi: billed.miss,
                 hc: billed.hit,
+                cu: currentCurrency,
               })
             : state.history
         if (prev !== null && prev.turn === turn && prev.step === step) {
           const old = costOf(prev)
+          const prevCurrency = rateOf(prev.provider, prev.model, prev.time).currency
           const prevInputTokens = prev.inputTokens + prev.cacheReadTokens + prev.cacheWriteTokens
           const turnBase =
             state.turn !== null && state.turn.id === prev.turn
@@ -1052,75 +1114,80 @@ export function apply(ctx: any, _config: any): void {
                   cacheReadTokens: 0,
                   outputTokens: 0,
                 }
+          const turnWithTokens: TurnTotals = {
+            ...turnBase,
+            id: turn,
+            inputTokens: turnBase.inputTokens - prevInputTokens + sampleInputTokens,
+            cacheReadTokens: turnBase.cacheReadTokens - prev.cacheReadTokens + sample.cacheReadTokens,
+            outputTokens: turnBase.outputTokens - prev.outputTokens + sample.outputTokens,
+          }
+          const totalsWithTokens: Totals = {
+            ...state.totals,
+            inputTokens: state.totals.inputTokens - prevInputTokens + sampleInputTokens,
+            cacheReadTokens: state.totals.cacheReadTokens - prev.cacheReadTokens + sample.cacheReadTokens,
+            outputTokens: state.totals.outputTokens - prev.outputTokens + sample.outputTokens,
+            rounds: state.totals.rounds,
+            missSteps: state.totals.missSteps - (isWriteMiss(prev) ? 1 : 0) + (writeMiss ? 1 : 0),
+            writeTokens: state.totals.writeTokens - prev.cacheWriteTokens + sample.cacheWriteTokens,
+            fullMissSteps:
+              state.totals.fullMissSteps - (isFullMiss(prev) ? 1 : 0) + (fullMiss ? 1 : 0),
+          }
           return {
             ...state,
             last: sample,
             call,
             history,
-            turn: {
-              ...turnBase,
-              id: turn,
-              hitCost: turnBase.hitCost - old.hit + current.hit,
-              missCost: turnBase.missCost - old.miss + current.miss,
-              outputCost: turnBase.outputCost - old.output + current.output,
-              inputTokens: turnBase.inputTokens - prevInputTokens + sampleInputTokens,
-              cacheReadTokens:
-                turnBase.cacheReadTokens - prev.cacheReadTokens + sample.cacheReadTokens,
-              outputTokens: turnBase.outputTokens - prev.outputTokens + sample.outputTokens,
-            },
-            totals: {
-              cacheHitCost: state.totals.cacheHitCost - old.hit + current.hit,
-              missCost: state.totals.missCost - old.miss + current.miss,
-              outputCost: state.totals.outputCost - old.output + current.output,
-              inputTokens: state.totals.inputTokens - prevInputTokens + sampleInputTokens,
-              cacheReadTokens:
-                state.totals.cacheReadTokens - prev.cacheReadTokens + sample.cacheReadTokens,
-              outputTokens: state.totals.outputTokens - prev.outputTokens + sample.outputTokens,
-              rounds: state.totals.rounds,
-              missSteps: state.totals.missSteps - (isWriteMiss(prev) ? 1 : 0) + (writeMiss ? 1 : 0),
-              writeTokens: state.totals.writeTokens - prev.cacheWriteTokens + sample.cacheWriteTokens,
-              fullMissSteps:
-                state.totals.fullMissSteps - (isFullMiss(prev) ? 1 : 0) + (fullMiss ? 1 : 0),
-            },
+            // 同一步换样本：先按旧样本自己的币种回退，再按新样本币种加上（两边币种都可能不同）
+            turn: addToTurn(
+              addToTurn(turnWithTokens, prevCurrency, -old.hit, -old.miss, -old.output),
+              currentCurrency,
+              current.hit,
+              current.miss,
+              current.output,
+            ),
+            totals: addToTotals(
+              addToTotals(totalsWithTokens, prevCurrency, -old.hit, -old.miss, -old.output),
+              currentCurrency,
+              current.hit,
+              current.miss,
+              current.output,
+            ),
           }
         }
         const sameTurn = state.turn !== null && state.turn.id === turn
+        const turnWithTokens: TurnTotals = sameTurn
+          ? {
+              ...state.turn!,
+              inputTokens: state.turn!.inputTokens + sampleInputTokens,
+              cacheReadTokens: state.turn!.cacheReadTokens + sample.cacheReadTokens,
+              outputTokens: state.turn!.outputTokens + sample.outputTokens,
+            }
+          : {
+              id: turn,
+              hitCost: 0,
+              missCost: 0,
+              outputCost: 0,
+              inputTokens: sampleInputTokens,
+              cacheReadTokens: sample.cacheReadTokens,
+              outputTokens: sample.outputTokens,
+            }
+        const totalsWithTokens: Totals = {
+          ...state.totals,
+          inputTokens: state.totals.inputTokens + sampleInputTokens,
+          cacheReadTokens: state.totals.cacheReadTokens + sample.cacheReadTokens,
+          outputTokens: state.totals.outputTokens + sample.outputTokens,
+          rounds: state.totals.rounds + 1,
+          missSteps: state.totals.missSteps + (writeMiss ? 1 : 0),
+          writeTokens: state.totals.writeTokens + sample.cacheWriteTokens,
+          fullMissSteps: state.totals.fullMissSteps + (fullMiss ? 1 : 0),
+        }
         return {
           ...state,
           last: sample,
           call,
           history,
-          turn: sameTurn
-            ? {
-                ...state.turn!,
-                hitCost: state.turn!.hitCost + current.hit,
-                missCost: state.turn!.missCost + current.miss,
-                outputCost: state.turn!.outputCost + current.output,
-                inputTokens: state.turn!.inputTokens + sampleInputTokens,
-                cacheReadTokens: state.turn!.cacheReadTokens + sample.cacheReadTokens,
-                outputTokens: state.turn!.outputTokens + sample.outputTokens,
-              }
-            : {
-                id: turn,
-                hitCost: current.hit,
-                missCost: current.miss,
-                outputCost: current.output,
-                inputTokens: sampleInputTokens,
-                cacheReadTokens: sample.cacheReadTokens,
-                outputTokens: sample.outputTokens,
-              },
-          totals: {
-            cacheHitCost: state.totals.cacheHitCost + current.hit,
-            missCost: state.totals.missCost + current.miss,
-            outputCost: state.totals.outputCost + current.output,
-            inputTokens: state.totals.inputTokens + sampleInputTokens,
-            cacheReadTokens: state.totals.cacheReadTokens + sample.cacheReadTokens,
-            outputTokens: state.totals.outputTokens + sample.outputTokens,
-            rounds: state.totals.rounds + 1,
-            missSteps: state.totals.missSteps + (writeMiss ? 1 : 0),
-            writeTokens: state.totals.writeTokens + sample.cacheWriteTokens,
-            fullMissSteps: state.totals.fullMissSteps + (fullMiss ? 1 : 0),
-          },
+          turn: addToTurn(turnWithTokens, currentCurrency, current.hit, current.miss, current.output),
+          totals: addToTotals(totalsWithTokens, currentCurrency, current.hit, current.miss, current.output),
         }
       },
 
@@ -1133,7 +1200,14 @@ export function apply(ctx: any, _config: any): void {
           missCost: z.number().nonnegative(),
           /** 输出花费 */
           outputCost: z.number().nonnegative(),
-          currency: z.literal('CNY'),
+          /** 美元条目的当前步三笔（币种=USD 的条目只进这三个字段） */
+          costUsd: z.number().nonnegative(),
+          missCostUsd: z.number().nonnegative(),
+          outputCostUsd: z.number().nonnegative(),
+          /** 当前步的计价币种 */
+          currency: z.enum(['CNY', 'USD']),
+          /** 本会话是否同时出现两种币种（客户端据此分开合计，绝不混算） */
+          mixedCurrency: z.boolean(),
           cacheReadTokens: z.number().int().nonnegative(),
           totalInputTokens: z.number().int().nonnegative(),
           /** 当前步输出 token */
@@ -1155,6 +1229,10 @@ export function apply(ctx: any, _config: any): void {
           turnMissCost: z.number().nonnegative(),
           /** 当前轮输出金额 */
           turnOutputCost: z.number().nonnegative(),
+          /** 当前轮三笔的美元部分 */
+          turnHitCostUsd: z.number().nonnegative(),
+          turnMissCostUsd: z.number().nonnegative(),
+          turnOutputCostUsd: z.number().nonnegative(),
           /** 当前轮 token 总额，输入加输出 */
           turnTokens: z.number().int().nonnegative(),
           /** 当前轮缓存命中 token 累计 */
@@ -1175,6 +1253,10 @@ export function apply(ctx: any, _config: any): void {
           sessionMissCost: z.number().nonnegative(),
           /** 会话累计：输出金额 */
           sessionOutputCost: z.number().nonnegative(),
+          /** 会话累计三笔的美元部分（币种=USD 的条目） */
+          sessionCacheHitCostUsd: z.number().nonnegative(),
+          sessionMissCostUsd: z.number().nonnegative(),
+          sessionOutputCostUsd: z.number().nonnegative(),
           /** 会话累计：已有用量的轮数 */
           sessionRounds: z.number().int().nonnegative(),
           /** 会话累计缓存失效 step 数，发生过缓存写入，仅部分中转有值 */
@@ -1211,7 +1293,11 @@ export function apply(ctx: any, _config: any): void {
               cost: 0,
               missCost: 0,
               outputCost: 0,
+              costUsd: 0,
+              missCostUsd: 0,
+              outputCostUsd: 0,
               currency: 'CNY' as const,
+              mixedCurrency: false,
               cacheReadTokens: 0,
               totalInputTokens: 0,
               outputTokens: 0,
@@ -1227,6 +1313,9 @@ export function apply(ctx: any, _config: any): void {
               turnHitCost: 0,
               turnMissCost: 0,
               turnOutputCost: 0,
+              turnHitCostUsd: 0,
+              turnMissCostUsd: 0,
+              turnOutputCostUsd: 0,
               turnTokens: 0,
               turnCacheReadTokens: 0,
               turnInputTokens: 0,
@@ -1234,6 +1323,9 @@ export function apply(ctx: any, _config: any): void {
               sessionCacheHitCost: sessionTotals.cacheHitCost,
               sessionMissCost: sessionTotals.missCost,
               sessionOutputCost: sessionTotals.outputCost,
+              sessionCacheHitCostUsd: sessionTotals.usdHitCost ?? 0,
+              sessionMissCostUsd: sessionTotals.usdMissCost ?? 0,
+              sessionOutputCostUsd: sessionTotals.usdOutputCost ?? 0,
               sessionInputTokens: sessionTotals.inputTokens,
               sessionCacheReadTokens: sessionTotals.cacheReadTokens,
               sessionOutputTokens: sessionTotals.outputTokens,
@@ -1246,7 +1338,7 @@ export function apply(ctx: any, _config: any): void {
             }
           }
           const totalInput = s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens
-          const { row, tier, matched } = rateOf(s.provider, s.model, s.time)
+          const { row, tier, matched, currency: rowCurrency } = rateOf(s.provider, s.model, s.time)
           const cost = round9((s.cacheReadTokens * row.hit) / 1e6)
           const missCost = round9((s.inputTokens * row.miss + s.cacheWriteTokens * row.write) / 1e6)
           const outputCost = round9((s.outputTokens * row.output) / 1e6)
@@ -1257,6 +1349,8 @@ export function apply(ctx: any, _config: any): void {
             ...(state.prevGen === null ? [] : state.prevGen.steps),
             ...state.history,
           ]) {
+            // 「读代码」按币种分别合计：只累计与当前步同币种的历史步骤，绝不把美元和元加在一起
+            if ((e.cu ?? 'CNY') !== rowCurrency) continue
             turnMiss.set(e.t, (turnMiss.get(e.t) ?? 0) + (e.mi ?? 0))
           }
           const firstTurns = [...turnMiss.keys()].sort((a, b) => a - b).slice(0, 2)
@@ -1265,10 +1359,19 @@ export function apply(ctx: any, _config: any): void {
           const fullMiss = round9((totalInput * row.miss) / 1e6)
           return {
             available: totalInput > 0 || s.outputTokens > 0,
-            cost,
-            missCost,
-            outputCost,
-            currency: 'CNY' as const,
+            cost: rowCurrency === 'USD' ? 0 : cost,
+            missCost: rowCurrency === 'USD' ? 0 : missCost,
+            outputCost: rowCurrency === 'USD' ? 0 : outputCost,
+            costUsd: rowCurrency === 'USD' ? cost : 0,
+            missCostUsd: rowCurrency === 'USD' ? missCost : 0,
+            outputCostUsd: rowCurrency === 'USD' ? outputCost : 0,
+            currency: rowCurrency,
+            mixedCurrency:
+              sessionTotals.cacheHitCost + sessionTotals.missCost + sessionTotals.outputCost > 0 &&
+              (sessionTotals.usdHitCost ?? 0) +
+                (sessionTotals.usdMissCost ?? 0) +
+                (sessionTotals.usdOutputCost ?? 0) >
+                0,
             cacheReadTokens: s.cacheReadTokens,
             totalInputTokens: totalInput,
             outputTokens: s.outputTokens,
@@ -1286,6 +1389,9 @@ export function apply(ctx: any, _config: any): void {
             turnHitCost: turn === null ? 0 : turn.hitCost,
             turnMissCost: turn === null ? 0 : turn.missCost,
             turnOutputCost: turn === null ? 0 : turn.outputCost,
+            turnHitCostUsd: turn === null ? 0 : (turn.usdHitCost ?? 0),
+            turnMissCostUsd: turn === null ? 0 : (turn.usdMissCost ?? 0),
+            turnOutputCostUsd: turn === null ? 0 : (turn.usdOutputCost ?? 0),
             turnTokens: turn === null ? 0 : turn.inputTokens + turn.outputTokens,
             turnCacheReadTokens: turn === null ? 0 : turn.cacheReadTokens,
             turnInputTokens: turn === null ? 0 : turn.inputTokens,
@@ -1293,6 +1399,9 @@ export function apply(ctx: any, _config: any): void {
             sessionCacheHitCost: sessionTotals.cacheHitCost,
             sessionMissCost: sessionTotals.missCost,
             sessionOutputCost: sessionTotals.outputCost,
+            sessionCacheHitCostUsd: sessionTotals.usdHitCost ?? 0,
+            sessionMissCostUsd: sessionTotals.usdMissCost ?? 0,
+            sessionOutputCostUsd: sessionTotals.usdOutputCost ?? 0,
             sessionInputTokens: sessionTotals.inputTokens,
             sessionCacheReadTokens: sessionTotals.cacheReadTokens,
             sessionOutputTokens: sessionTotals.outputTokens,

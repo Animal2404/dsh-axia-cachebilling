@@ -76,7 +76,7 @@ const CSS = `
 .meowcb_set_row{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;cursor:pointer;display:flex;gap:10px;padding:9px 12px;transition:background .15s,border-color .15s}
 .meowcb_set_row:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2)}
 .meowcb_set_rowmain{display:flex;flex-direction:column;gap:2px;min-width:0}
-.meowcb_set_model{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meowcb_set_model{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .meowcb_set_ver{color:var(--dsw-alias-label-caption);font-size:11.5px}
 .meowcb_set_spacer{flex:1}
 .meowcb_set_chev{color:var(--dsw-alias-label-caption);flex:none;font-size:15px;line-height:1}
@@ -94,7 +94,8 @@ const CSS = `
 .meowcb_set_input:focus{border-color:var(--dsw-alias-border-l2);outline:none}
 .meowcb_set_input::placeholder{color:var(--dsw-alias-label-caption);opacity:.7}
 .meowcb_set_input_grow{flex:1;min-width:0}
-.meowcb_set_input_mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+/* 用 DSH 自己的字体（用户要求别改字体），只给数字加等宽数字特性 */
+.meowcb_set_input_mono{font-variant-numeric:tabular-nums}
 .meowcb_set_input_err{border-color:#f43f5e}
 .meowcb_set_select{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;max-width:100%;min-width:0;padding:5px 8px}
 .meowcb_set_select option{background:var(--dsw-alias-bg-layer-2,#26262b);color:var(--dsw-alias-label-primary,#eee)}
@@ -139,6 +140,8 @@ interface UserEntry {
   model: string
   /** 人看的模型版本名（如 DeepSeek-V4.1-Flash），只用于显示，不参与匹配 */
   label?: string
+  /** 计价币种：'CNY'（元，缺省）/ 'USD'（美元）。账单按币种分开合计，不混算 */
+  currency?: 'CNY' | 'USD'
   provider?: string
   timezone?: string
   peak?: PricePart & { when: WhenGroup[] }
@@ -222,6 +225,7 @@ interface Draft {
   provider: string
   model: string
   label: string
+  currency: 'CNY' | 'USD'
   timezone: string
   isPeak: boolean
   flatHit: string
@@ -243,6 +247,7 @@ function draftFromEntry(e: UserEntry): Draft {
     provider: e.provider ?? '',
     model: e.model ?? '',
     label: e.label ?? '',
+    currency: e.currency === 'USD' ? 'USD' : 'CNY',
     timezone: e.timezone ?? 'Asia/Shanghai',
     isPeak: Boolean(e.peak),
     flatHit: e.const ? String(e.const.hit) : NUM,
@@ -262,6 +267,7 @@ const emptyDraft = (): Draft => ({
   provider: '',
   model: '',
   label: '',
+  currency: 'CNY',
   timezone: 'Asia/Shanghai',
   isPeak: false,
   flatHit: NUM,
@@ -300,6 +306,7 @@ function validateDraft(d: Draft): string | null {
 function buildEntry(d: Draft): UserEntry {
   const e: UserEntry = { model: d.model.trim() }
   if (d.label.trim()) e.label = d.label.trim()
+  if (d.currency === 'USD') e.currency = 'USD'
   const provider = d.provider.trim().toLowerCase()
   if (provider) e.provider = provider
   // 时区只在峰谷条目上有意义（一口价不判峰谷，host 侧缺省 Asia/Shanghai）
@@ -834,6 +841,29 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                 '峰谷价',
               ),
             ),
+            el('span', { className: 'meowcb_set_label', style: { marginLeft: '10px' } }, '币种'),
+            el(
+              'div',
+              { className: 'meowcb_set_seg' },
+              el(
+                'button',
+                {
+                  type: 'button',
+                  className: 'meowcb_set_segbtn' + (draft.currency === 'USD' ? '' : ' meowcb_set_segbtn_on'),
+                  onClick: () => set({ currency: 'CNY' }),
+                },
+                '元 ¥',
+              ),
+              el(
+                'button',
+                {
+                  type: 'button',
+                  className: 'meowcb_set_segbtn' + (draft.currency === 'USD' ? ' meowcb_set_segbtn_on' : ''),
+                  onClick: () => set({ currency: 'USD' }),
+                },
+                '美元 $',
+              ),
+            ),
           ),
           draft.isPeak
             ? el(
@@ -876,7 +906,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
               'div',
               { className: 'meowcb_set_prices_head' },
               el('span', { className: 'meowcb_set_prices_title' }, draft.isPeak ? '峰价' : '价格'),
-              el('span', { className: 'meowcb_set_unit' }, '元 / 百万 token'),
+              el('span', { className: 'meowcb_set_unit' }, draft.currency === 'USD' ? '美元 / 百万 token' : '元 / 百万 token'),
             ),
             el(PriceInputs, { d: draft, set, mode: draft.isPeak ? 'peak' : 'flat' }),
             draft.isPeak
@@ -932,7 +962,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
         'div',
         { className: 'meowcb_set_rowmain' },
         el('span', { className: 'meowcb_set_model' }, entry.model),
-        entry.label ? el('span', { className: 'meowcb_set_ver' }, entry.label) : null,
+        entry.label || entry.currency === 'USD'
+          ? el(
+              'span',
+              { className: 'meowcb_set_ver' },
+              [entry.label ?? '', entry.currency === 'USD' ? '美元计价' : ''].filter(Boolean).join(' · '),
+            )
+          : null,
       ),
       el('span', { className: 'meowcb_set_spacer' }),
       el('span', { className: 'meowcb_set_badge meowcb_set_badge_tier' }, entry.peak ? '峰谷' : '一口价'),

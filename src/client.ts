@@ -19,7 +19,7 @@ const CSS_ID = 'meow-cachebilling-css'
 const CSS = `
 /* 所有尺寸乘 --meow-fs（字号档位，见 settings.ts 的 applyFontScale）：大屏远距离直接调档，不用动浏览器缩放 */
 .meowcb_bill{margin-top:calc(8px * var(--meow-fs,1));padding-top:calc(8px * var(--meow-fs,1));border-top:1px solid var(--dsw-alias-border-l3)}
-.meowcb_grid{display:grid;grid-template-columns:max-content 1fr 1fr 1fr 1fr;column-gap:calc(10px * var(--meow-fs,1));row-gap:calc(2px * var(--meow-fs,1));margin-top:calc(4px * var(--meow-fs,1));align-items:baseline;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1));text-align:center}
+.meowcb_grid{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));column-gap:calc(10px * var(--meow-fs,1));row-gap:calc(2px * var(--meow-fs,1));margin-top:calc(4px * var(--meow-fs,1));align-items:baseline;font-size:calc(10px * var(--meow-fs,1));line-height:calc(14px * var(--meow-fs,1));text-align:center}
 .meowcb_lab{color:var(--dsw-alias-label-secondary);font-weight:400;white-space:nowrap}
 .meowcb_t{color:var(--dsw-alias-label-primary);font-weight:500;font-variant-numeric:tabular-nums}
 .meowcb_h{color:var(--dsw-alias-label-secondary);font-weight:400;text-align:center;white-space:nowrap}
@@ -60,6 +60,8 @@ const CSS = `
   max-width: calc(100vw - 20px);
   max-width: calc(100dvw - 20px);
   overflow-y: auto;
+  /* 内容永不横向溢出：宁可让数字列变窄，也不出那条横向滚动条（用户明确不喜欢） */
+  overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -108,6 +110,12 @@ interface CacheBillingView {
   cost?: number
   missCost?: number
   outputCost?: number
+  /** 当前步的美元部分（币种=USD 的条目只进这三个字段） */
+  costUsd?: number
+  missCostUsd?: number
+  outputCostUsd?: number
+  /** 本会话同时出现两种币种时为 true，账单按币种分开合计并提示 */
+  mixedCurrency?: boolean
   currency?: string
   model?: string | null
   provider?: string | null
@@ -118,9 +126,15 @@ interface CacheBillingView {
   turnHitCost?: number
   turnMissCost?: number
   turnOutputCost?: number
+  turnHitCostUsd?: number
+  turnMissCostUsd?: number
+  turnOutputCostUsd?: number
   sessionCacheHitCost?: number
   sessionMissCost?: number
   sessionOutputCost?: number
+  sessionCacheHitCostUsd?: number
+  sessionMissCostUsd?: number
+  sessionOutputCostUsd?: number
   /** 曲线块（第二块）：null = 当前模型未命中价目表（估算步不入曲线）；avgHit=平均缓存累计（空数组=无 hc 数据不画） */
   curve?: {
     key: string
@@ -210,32 +224,78 @@ function renderBill(bill: HTMLElement): void {
     el.textContent = text
     grid.appendChild(el)
   }
-  cell('meowcb_lab', `消耗(${symbol})`)
+  cell('meowcb_lab', '消耗')
   cell('meowcb_h', '总价')
-  cell('meowcb_h', '缓存命中')
-  cell('meowcb_h', '缓存未命中')
-  cell('meowcb_h', '输出')
-  const tableRow = (label: string, total: number, hit: number, miss: number, out: number): void => {
-    cell('meowcb_lab', label)
-    cell('meowcb_v', formatAmount(total))
-    cell('meowcb_v', formatAmount(hit))
-    cell('meowcb_v', formatAmount(miss))
-    cell('meowcb_v', formatAmount(out))
+  const head = (text: string, full: string): void => {
+    const el = doc.createElement('div')
+    el.className = 'meowcb_h'
+    el.textContent = text
+    el.title = full
+    grid.appendChild(el)
   }
-  tableRow('当前步', cost + missCost + outputCost, cost, missCost, outputCost)
+  head('命中', '缓存命中')
+  head('未命中', '缓存未命中')
+  head('输出', '输出')
+  /** 金额单元格文本：每个数字自带币种符号，不用回头对表头（用户反馈「还要看一下分类」）。
+   *  元与美元分开合计、用 + 连接，绝不先把两种钱加在一起。 */
+  const money2 = (cny: number, usd: number): string => {
+    const parts: string[] = []
+    if (cny > 0 || usd <= 0) parts.push(`¥${formatAmount(cny)}`)
+    if (usd > 0) parts.push(`$${formatAmount(usd)}`)
+    return parts.join(' + ')
+  }
+  const n = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
+  const tableRow = (label: string, total: string, hit: string, miss: string, out: string): void => {
+    cell('meowcb_lab', label)
+    cell('meowcb_v', total)
+    cell('meowcb_v', hit)
+    cell('meowcb_v', miss)
+    cell('meowcb_v', out)
+  }
+  tableRow(
+    '当前步',
+    money2(cost + missCost + outputCost, n(view.costUsd) + n(view.missCostUsd) + n(view.outputCostUsd)),
+    money2(cost, n(view.costUsd)),
+    money2(missCost, n(view.missCostUsd)),
+    money2(outputCost, n(view.outputCostUsd)),
+  )
 
-  // 当前轮：turn 内多步累计
-  const turnHit = Number.isFinite(view.turnHitCost) ? (view.turnHitCost as number) : 0
-  const turnMiss = Number.isFinite(view.turnMissCost) ? (view.turnMissCost as number) : 0
-  const turnOut = Number.isFinite(view.turnOutputCost) ? (view.turnOutputCost as number) : 0
-  tableRow('当前轮', turnHit + turnMiss + turnOut, turnHit, turnMiss, turnOut)
+  // 当前轮：turn 内多步累计（元与美元分开合计）
+  const turnHit = n(view.turnHitCost)
+  const turnMiss = n(view.turnMissCost)
+  const turnOut = n(view.turnOutputCost)
+  const turnHitUsd = n(view.turnHitCostUsd)
+  const turnMissUsd = n(view.turnMissCostUsd)
+  const turnOutUsd = n(view.turnOutputCostUsd)
+  tableRow(
+    '当前轮',
+    money2(turnHit + turnMiss + turnOut, turnHitUsd + turnMissUsd + turnOutUsd),
+    money2(turnHit, turnHitUsd),
+    money2(turnMiss, turnMissUsd),
+    money2(turnOut, turnOutUsd),
+  )
 
   // 本会话累计
-  const sessionHit = Number.isFinite(view.sessionCacheHitCost) ? (view.sessionCacheHitCost as number) : 0
-  const sessionMiss = Number.isFinite(view.sessionMissCost) ? (view.sessionMissCost as number) : 0
-  const sessionOut = Number.isFinite(view.sessionOutputCost) ? (view.sessionOutputCost as number) : 0
-  tableRow('本会话', sessionHit + sessionMiss + sessionOut, sessionHit, sessionMiss, sessionOut)
+  const sessionHit = n(view.sessionCacheHitCost)
+  const sessionMiss = n(view.sessionMissCost)
+  const sessionOut = n(view.sessionOutputCost)
+  const sessionHitUsd = n(view.sessionCacheHitCostUsd)
+  const sessionMissUsd = n(view.sessionMissCostUsd)
+  const sessionOutUsd = n(view.sessionOutputCostUsd)
+  tableRow(
+    '本会话',
+    money2(sessionHit + sessionMiss + sessionOut, sessionHitUsd + sessionMissUsd + sessionOutUsd),
+    money2(sessionHit, sessionHitUsd),
+    money2(sessionMiss, sessionMissUsd),
+    money2(sessionOut, sessionOutUsd),
+  )
   put(grid)
+  if (view.mixedCurrency === true) {
+    const mixed = doc.createElement('div')
+    mixed.className = 'meowcb_foot'
+    mixed.textContent = '本会话含两种币种，已按币种分开合计（元在前、美元在后）'
+    put(mixed)
+  }
 
   // 块 2+3 合并布局：标题横贯顶部（provider/model，峰谷带括号），左=竖长方形曲线（图例画图内），右=「消耗比较」+「缓存」两节——失效统计从表下小字搬入右列，底部灰字删除（猫猫 08-31 定稿）。
   renderChart(doc, put, view)
@@ -409,7 +469,7 @@ function renderChart(doc: Document, put: (el: HTMLElement) => void, view: CacheB
       row.appendChild(lab)
       const num = doc.createElement('span')
       num.className = 'meowcb_cmpv'
-      num.textContent = formatAmount(value)
+      num.textContent = `${view.currency === 'USD' ? '$' : '¥'}${formatAmount(value)}`
       row.appendChild(num)
       side.appendChild(row)
     }
