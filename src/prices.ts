@@ -43,7 +43,7 @@ export interface PriceCatalog {
 }
 
 export const PRICE_CATALOG_URL =
-  'https://raw.githubusercontent.com/Animal2404/dsh-meow-cachebilling/main/price-catalog.json'
+  'https://raw.githubusercontent.com/Animal2404/dsh-axia-cachebilling/main/price-catalog.json'
 
 const CACHE_MS = 10 * 60 * 1000
 let cached: PriceCatalog | null = null
