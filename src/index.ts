@@ -140,6 +140,24 @@ const RATE_DEFAULTS_RAW = {
       valley: { hit: 0.02, miss: 1, output: 4 },
       cacheSaving: null,
     },
+    {
+      // Open Code Go 订阅价（美元）。provider/model 与用户 DSH 里 llm-pi-ai.providers.opencode-go 的
+      // baseURL(https://opencode.ai/zen/go/v1) 与 models: id=deepseek-flash 对齐；峰时段按官方口径为
+      // UTC 的周一至周五 01:00-04:00 与 06:00-10:00，其余（含周末）为谷价。
+      model: 'deepseek-flash',
+      label: 'DeepSeek-V4.1-Flash（Open Code Go 订阅价）',
+      provider: 'opencode-go',
+      currency: 'USD',
+      timezone: 'UTC',
+      peak: {
+        hit: 0.006,
+        miss: 0.3,
+        output: 1.2,
+        when: [{ days: ['mon', 'tue', 'wed', 'thu', 'fri'], ranges: ['01:00-04:00', '06:00-10:00'] }],
+      },
+      valley: { hit: 0.003, miss: 0.15, output: 0.6 },
+      cacheSaving: null,
+    },
   ],
 } satisfies z.infer<typeof ratesFileSchema>
 
