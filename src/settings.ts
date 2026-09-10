@@ -658,6 +658,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     if (p && PROVIDER_TIMEZONE[p]) return { auto: true, tz: PROVIDER_TIMEZONE[p] }
     return { auto: false, tz: draft?.timezone ?? 'UTC' }
   }
+  /** 只在用户提交过一次之后再标红，避免一打开就满屏"报错"。 */
+  const tried = error !== null
 
   const editor =
     draft === null
@@ -803,7 +805,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   '峰时段（[天][时段]，多组用 + 连接）',
                   el('input', {
                     className:
-                      'meowcb_set_input meowcb_set_input_mono' + (draft.whenText.trim() ? '' : ' meowcb_set_input_err'),
+                      'meowcb_set_input meowcb_set_input_mono' +
+                      (tried && !draft.whenText.trim() ? ' meowcb_set_input_err' : ''),
                     value: draft.whenText,
                     onChange: (e: any) => set({ whenText: e.target.value }),
                     placeholder: '[mon-fri][09:00-12:00, 14:00-18:00]',
@@ -820,7 +823,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                       '时区（IANA）',
                       el('input', {
                         className:
-                          'meowcb_set_input meowcb_set_input_mono' + (draft.timezone.trim() ? '' : ' meowcb_set_input_err'),
+                          'meowcb_set_input meowcb_set_input_mono' + (tried && !draft.timezone.trim() ? ' meowcb_set_input_err' : ''),
                         value: draft.timezone,
                         onChange: (e: any) => set({ timezone: e.target.value }),
                         placeholder: 'Asia/Shanghai',
