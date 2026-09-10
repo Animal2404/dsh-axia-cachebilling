@@ -19,6 +19,8 @@ const CSS_ID = 'meow-cachebilling-settings-css'
 
 const CSS = `
 .meowcb_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:820px;padding:4px 0}
+/* 自带 border-box：DSH 外壳不重置盒模型，缺了它 width:100% 的输入框会撑破网格、互相压边 */
+.meowcb_set_page,.meowcb_set_page *{box-sizing:border-box}
 .meowcb_set_head{display:flex;flex-direction:column;gap:4px}
 .meowcb_set_title{font-size:17px;font-weight:650;letter-spacing:.2px;margin:0}
 .meowcb_set_subtitle{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.6;margin:0}

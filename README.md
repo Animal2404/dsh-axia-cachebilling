@@ -134,7 +134,7 @@ dsh plugin --profile web remove meow-cachebilling
 
 | 模型 | 版本名 | 峰（命中/未命中/输出） | 谷 |
 |---|---|---|---|
-| deepseek-flash | DeepSeek-V4.1-Flash | 0.1 / 3 / 9 | 0.05 / 1.5 / 4.5 |
+| deepseek-flash | DeepSeek-V4.1-Flash | 0.04 / 2 / 8 | 0.02 / 1 / 4 |
 
 其余供应商 / 模型不再预填：在设置页「喵缓存账单」里用下拉挑供应商与模型，点「获取模型」拉清单，填上价格保存即可（那条存在你的设置层，不会被版本更新覆盖）。
 
