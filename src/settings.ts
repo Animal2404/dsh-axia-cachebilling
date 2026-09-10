@@ -24,7 +24,7 @@ const CSS_ID = 'meow-cachebilling-settings-css'
 // 两边一起变大；存 localStorage（跟着浏览器走，不需要动 DSH 设置）。
 
 const FONT_SCALE_KEY = 'meowcb-font-scale'
-const DEFAULT_FONT_SCALE = 1.25
+const DEFAULT_FONT_SCALE = 1.5
 export const FONT_SCALES: Array<{ value: number; label: string }> = [
   { value: 1, label: '标准' },
   { value: 1.25, label: '大' },
