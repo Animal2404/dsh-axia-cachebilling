@@ -13,6 +13,7 @@
  */
 
 import * as React from 'react'
+import { loadPriceCatalog, lookupCatalog, serializeCatalogWhen, type CatalogMatch, type PriceCatalog } from './prices'
 
 const SETTINGS_NS = 'meow-cachebilling'
 const CSS_ID = 'meow-cachebilling-settings-css'
@@ -546,6 +547,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   const [probe, setProbe] = React.useState<{ busy: boolean; note: string | null }>({ busy: false, note: null })
   const [manual, setManual] = React.useState<{ provider: boolean; model: boolean }>({ provider: false, model: false })
   const [scale, setScale] = React.useState<number>(() => readFontScale())
+  const [prices, setPrices] = React.useState<{
+    status: 'idle' | 'loading' | 'ready' | 'error'
+    catalog: PriceCatalog | null
+    note: string | null
+  }>({ status: 'idle', catalog: null, note: null })
+  /** 用户是否亲手改过模型字段：只有新条目或手改过模型才自动套目录价，编辑旧条目时不能覆盖已存的价格 */
+  const modelTouched = React.useRef(false)
 
   const base = snap.base ?? {}
   const user = snap.user ?? {}
@@ -635,8 +643,76 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     }
   }
 
+  /** 目录命中 → 填进草稿：峰谷条目连峰时段/时区一起填，一口价只填三档；版本名为空时顺手补上。 */
+  const applyCatalogPrices = (match: CatalogMatch): void => {
+    const entry = match.entry
+    const patch: Partial<Draft> = { currency: entry.currency === 'USD' ? 'USD' : 'CNY' }
+    if (entry.peak && entry.valley) {
+      patch.isPeak = true
+      patch.peakHit = String(entry.peak.hit)
+      patch.peakMiss = String(entry.peak.miss)
+      patch.peakOutput = String(entry.peak.output)
+      patch.valleyHit = String(entry.valley.hit)
+      patch.valleyMiss = String(entry.valley.miss)
+      patch.valleyOutput = String(entry.valley.output)
+      if (Array.isArray(entry.peak.when) && entry.peak.when.length > 0) {
+        patch.whenText = serializeCatalogWhen(entry.peak.when)
+      }
+      if (entry.timezone) patch.timezone = entry.timezone
+    } else if (entry.const) {
+      patch.isPeak = false
+      patch.flatHit = String(entry.const.hit)
+      patch.flatMiss = String(entry.const.miss)
+      patch.flatOutput = String(entry.const.output)
+    } else {
+      return
+    }
+    if (entry.label && (draft === null || draft.label.trim() === '')) patch.label = entry.label
+    set(patch)
+    const shape = entry.peak && entry.valley ? '峰谷价' : '一口价'
+    const scope = match.providerMatched ? '' : '（仅按模型名匹配，供应商没识别出来）'
+    setPrices((prev) => ({ ...prev, note: `${scope}已按目录价填入${shape}：${entry.label ?? entry.model}` }))
+  }
+
+  /** 拉目录；thenApply=true 时命中就填价（「套用目录价」「刷新价格」走这条）。 */
+  const refreshPrices = async (force: boolean, thenApply: boolean): Promise<void> => {
+    setPrices((prev) => ({ ...prev, status: 'loading' }))
+    const catalog = await loadPriceCatalog(force)
+    if (catalog === null) {
+      setPrices({ status: 'error', catalog: null, note: '价格目录拉取失败：稍后再点一次「刷新价格」，或直接手填' })
+      return
+    }
+    setPrices({ status: 'ready', catalog, note: null })
+    if (!thenApply || draft === null) return
+    const match = lookupCatalog(catalog, draft.provider, draft.model)
+    if (match === null) {
+      setPrices((prev) => ({ ...prev, note: `目录里没有「${draft.model.trim() || '（模型为空）'}」或其供应商不匹配` }))
+      return
+    }
+    applyCatalogPrices(match)
+  }
+
+  // 选完模型自动套目录价：只在「新条目」或「用户亲手改过模型」时生效，编辑旧条目绝不覆盖已存价格
+  React.useEffect(() => {
+    if (draft === null) return
+    if (expanded !== '__new__' && !modelTouched.current) return
+    const model = draft.model.trim()
+    if (model === '') return
+    let cancelled = false
+    void (async () => {
+      const catalog = await loadPriceCatalog(false)
+      if (cancelled || catalog === null) return
+      const match = lookupCatalog(catalog, draft.provider, model)
+      if (match !== null) applyCatalogPrices(match)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [expanded, draft?.provider, draft?.model])
+
   const open = (key: string | null): void => {
     setError(null)
+    modelTouched.current = false
     if (key === null) {
       setExpanded(null)
       setDraft(null)
@@ -648,8 +724,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   }
 
   const save = async (): Promise<void> => {
-    if (!draft || !expanded) return
-    const err = validateDraft(draft)
+    if (!draft || !expanded) return    const err = validateDraft(draft)
     if (err) {
       setError(err)
       return
@@ -771,7 +846,10 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                   ? el('input', {
                       className: 'meowcb_set_input meowcb_set_input_grow meowcb_set_input_mono',
                       value: draft.model,
-                      onChange: (e: any) => set({ model: e.target.value }),
+                      onChange: (e: any) => {
+                    modelTouched.current = true
+                    set({ model: e.target.value })
+                  },
                       placeholder: 'deepseek-flash',
                     })
                   : el(
@@ -779,7 +857,10 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                       {
                         className: 'meowcb_set_select meowcb_set_input_grow',
                         value: modelOptions.includes(draft.model) ? draft.model : '',
-                        onChange: (e: any) => set({ model: e.target.value }),
+                        onChange: (e: any) => {
+                    modelTouched.current = true
+                    set({ model: e.target.value })
+                  },
                       },
                       el('option', { value: '' }, '（选一个模型）'),
                       modelOptions.map((m) => el('option', { key: m, value: m }, m)),
@@ -899,6 +980,34 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
                     ),
               )
             : null,
+          el(
+            'div',
+            { className: 'meowcb_set_fieldrow' },
+            el('span', { className: 'meowcb_set_label' }, '价格目录'),
+            el(
+              'button',
+              {
+                type: 'button',
+                className: 'meowcb_set_btn meowcb_set_btn_mini',
+                onClick: () => void refreshPrices(false, true),
+              },
+              '套用目录价',
+            ),
+            el(
+              'button',
+              {
+                type: 'button',
+                className: 'meowcb_set_btn meowcb_set_btn_mini',
+                disabled: prices.status === 'loading',
+                onClick: () => void refreshPrices(true, true),
+              },
+              prices.status === 'loading' ? '拉取中…' : '刷新价格',
+            ),
+            prices.catalog !== null
+              ? el('span', { className: 'meowcb_set_hint' }, `目录更新于 ${prices.catalog.updatedAt}`)
+              : null,
+          ),
+          prices.note ? el('p', { className: 'meowcb_set_note' }, prices.note) : null,
           el(
             'div',
             { className: 'meowcb_set_prices' },
