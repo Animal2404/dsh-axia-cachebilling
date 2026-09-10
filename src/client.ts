@@ -48,6 +48,15 @@ const CSS = `
 .axia_drow{display:flex;align-items:baseline;justify-content:space-between;gap:calc(10px * var(--axia-fs,1));padding:calc(3px * var(--axia-fs,1)) 0;border-top:1px solid var(--dsw-alias-border-l4)}
 .axia_dlab{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
 .axia_dval{color:var(--dsw-alias-label-primary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1));font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* 账单卡片（重做版）：圆角 + 浅底 + 卡片内「行名 / 大字总额 / 标签芯片」 */
+.axia_card{background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l4);border-radius:calc(10px * var(--axia-fs,1));display:flex;flex-direction:column;gap:calc(5px * var(--axia-fs,1));margin-top:calc(6px * var(--axia-fs,1));padding:calc(8px * var(--axia-fs,1)) calc(10px * var(--axia-fs,1))}
+.axia_cardhead{align-items:baseline;display:flex;gap:calc(8px * var(--axia-fs,1));justify-content:space-between}
+.axia_cardname{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
+.axia_cardsum{color:var(--dsw-alias-label-primary);font-size:calc(14px * var(--axia-fs,1));font-variant-numeric:tabular-nums;font-weight:650;line-height:calc(18px * var(--axia-fs,1));white-space:nowrap}
+.axia_chips{display:flex;flex-wrap:wrap;gap:calc(3px * var(--axia-fs,1)) calc(12px * var(--axia-fs,1))}
+.axia_chip{align-items:baseline;display:inline-flex;gap:calc(4px * var(--axia-fs,1));white-space:nowrap}
+.axia_chiplab{color:var(--dsw-alias-label-caption);font-size:calc(9px * var(--axia-fs,1));line-height:calc(13px * var(--axia-fs,1))}
+.axia_chipval{color:var(--dsw-alias-label-primary);font-size:calc(10px * var(--axia-fs,1));font-variant-numeric:tabular-nums;line-height:calc(13px * var(--axia-fs,1))}
 
 /* 手机矮视口适配：官方弹层 bottom 锚定向上生长且无高度上限（桌面假设），贴入账单后在手机竖屏会顶出屏幕外；
    同理 width 写死 264px，折叠屏折叠态外屏 CSS 视口更窄（<264px+边距）时弹层左缘整体被推出屏幕左缘外。
@@ -296,12 +305,43 @@ function renderBill(bill: HTMLElement): void {
     return parts.join(' + ')
   }
   const n = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
+  /** 一行账单 = 一张圆角卡片：行名 + 大字总额（右对齐），下面一行「标签 数值」小芯片。
+   *  每个数字都自带标签，不用再靠列对齐去猜（用户反馈：数字挤在一起、锁定后还要对比才知道是什么）。 */
   const tableRow = (label: string, total: string, hit: string, miss: string, out: string): void => {
-    cell('axia_lab', label)
-    cell('axia_v', total)
-    cell('axia_v', hit)
-    cell('axia_v', miss)
-    cell('axia_v', out)
+    const box = doc.createElement('div')
+    box.className = 'axia_card'
+    const head = doc.createElement('div')
+    head.className = 'axia_cardhead'
+    const name = doc.createElement('span')
+    name.className = 'axia_cardname'
+    name.textContent = label
+    const sum = doc.createElement('span')
+    sum.className = 'axia_cardsum'
+    sum.textContent = total
+    head.appendChild(name)
+    head.appendChild(sum)
+    box.appendChild(head)
+    const chips = doc.createElement('div')
+    chips.className = 'axia_chips'
+    const chip = (lab: string, val: string, hint: string): void => {
+      const item = doc.createElement('span')
+      item.className = 'axia_chip'
+      item.title = hint
+      const l = doc.createElement('span')
+      l.className = 'axia_chiplab'
+      l.textContent = lab
+      const v = doc.createElement('span')
+      v.className = 'axia_chipval'
+      v.textContent = val
+      item.appendChild(l)
+      item.appendChild(v)
+      chips.appendChild(item)
+    }
+    chip('命中', hit, '缓存命中部分的费用')
+    chip('未命中', miss, '未命中输入（含缓存写入）的费用')
+    chip('输出', out, '输出 token 的费用')
+    box.appendChild(chips)
+    put(box)
   }
   tableRow(
     '当前步',
@@ -340,7 +380,7 @@ function renderBill(bill: HTMLElement): void {
     money2(sessionMiss, sessionMissUsd),
     money2(sessionOut, sessionOutUsd),
   )
-  put(grid)
+  // 旧的无边框 5 列表头已不再挂载（数值全部进卡片自带标签），这里不 put(grid)
   if (view.mixedCurrency === true) {
     const mixed = doc.createElement('div')
     mixed.className = 'axia_foot'
