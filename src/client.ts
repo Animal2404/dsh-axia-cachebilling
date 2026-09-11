@@ -234,17 +234,7 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
     else put(line)
   }
 
-  const cmp = view.compare
-  if (cmp) {
-    section('消耗比较')
-    row('读代码', money(cmp.readCode), '前两轮所有未命中输入之和：新开窗口后 AI 重读代码的代价')
-    row('缓存', money(cmp.cache), '当前这一步的缓存命中花费')
-    row('缓存失效', money(cmp.fullMiss), '若服务器缓存已失效，本窗口上下文全按未命中计价的花费')
-  }
-  section('缓存')
-  row('完全失效次数', `${view.sessionFullMissSteps ?? 0} 次`, '有输入但缓存命中为 0 的步数')
-  row('缓存时间估算', '暂未实现')
-  row('现在失效可能', '暂未实现')
+  // 「消耗比较」「缓存」两节已按用户要求删除（2026-09-11）：弹层只留三张金额卡 + 模型胶囊，越短越好。
 }
 
 /** 用最新投影刷新账单区块内容，区块骨架已在贴装时建好。 */
