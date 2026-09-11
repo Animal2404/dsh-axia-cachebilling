@@ -202,7 +202,9 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
 
   const modelLine = doc.createElement('div')
   modelLine.className = 'axia_modelpill'
-  modelLine.textContent = `${provider}/${view.model ?? ''}${tier ? ` · ${tier}` : ''}`
+  // 单位也写在模型行里：一眼就知道下面的数字是什么钱（双币种会话写成「元 + 美元」）
+  const unit = view.mixedCurrency === true ? '元 + 美元' : view.currency === 'USD' ? '美元' : '元'
+  modelLine.textContent = `${provider}/${view.model ?? ''}${tier ? ` · ${tier}` : ''} · ${unit}`
   put(modelLine)
 
   const money = (value: number | undefined): string =>
