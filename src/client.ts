@@ -48,6 +48,8 @@ const CSS = `
 .axia_drow{display:flex;align-items:baseline;justify-content:space-between;gap:calc(10px * var(--axia-fs,1));padding:calc(3px * var(--axia-fs,1)) 0;border-top:1px solid var(--dsw-alias-border-l4)}
 .axia_dlab{color:var(--dsw-alias-label-secondary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1))}
 .axia_dval{color:var(--dsw-alias-label-primary);font-size:calc(10px * var(--axia-fs,1));line-height:calc(14px * var(--axia-fs,1));font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* 模型行做成小胶囊：与卡片同一套圆角语言，不再是一行裸文字 */
+.axia_modelpill{align-self:flex-start;background:color-mix(in srgb,currentColor 5%,transparent);border:1px solid var(--dsw-alias-border-l4);border-radius:999px;color:var(--dsw-alias-label-secondary);font-size:calc(9px * var(--axia-fs,1));line-height:calc(13px * var(--axia-fs,1));margin-top:calc(6px * var(--axia-fs,1));padding:calc(2px * var(--axia-fs,1)) calc(9px * var(--axia-fs,1))}
 /* 账单卡片（重做版）：圆角 + 浅底 + 卡片内「行名 / 大字总额 / 标签芯片」 */
 .axia_card{background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l4);border-radius:calc(10px * var(--axia-fs,1));display:flex;flex-direction:column;gap:calc(5px * var(--axia-fs,1));margin-top:calc(6px * var(--axia-fs,1));padding:calc(8px * var(--axia-fs,1)) calc(10px * var(--axia-fs,1))}
 .axia_cardhead{align-items:baseline;display:flex;gap:calc(8px * var(--axia-fs,1));justify-content:space-between}
@@ -199,13 +201,21 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
   const tier = view.tier ? tierMap[view.tier] : ''
 
   const modelLine = doc.createElement('div')
-  modelLine.className = 'axia_modeline'
+  modelLine.className = 'axia_modelpill'
   modelLine.textContent = `${provider}/${view.model ?? ''}${tier ? ` · ${tier}` : ''}`
   put(modelLine)
 
   const money = (value: number | undefined): string =>
     `${view.currency === 'USD' ? '$' : '¥'}${formatAmount(Number.isFinite(value) ? (value as number) : 0)}`
-  const section = (title: string): void => put(secHead(doc, '#60a5fa', title))
+  /** 每节一张卡片，与上面三张金额卡同一套圆角/浅底/描边；行仍是「标签—数值」。 */
+  let target: HTMLElement | null = null
+  const section = (title: string): void => {
+    const card = doc.createElement('div')
+    card.className = 'axia_card'
+    card.appendChild(secHead(doc, '#60a5fa', title))
+    put(card)
+    target = card
+  }
   const row = (label: string, value: string, hint?: string): void => {
     const line = doc.createElement('div')
     line.className = 'axia_drow'
@@ -218,7 +228,8 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
     val.textContent = value
     line.appendChild(lab)
     line.appendChild(val)
-    put(line)
+    if (target !== null) target.appendChild(line)
+    else put(line)
   }
 
   const cmp = view.compare
