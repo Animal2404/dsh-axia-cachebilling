@@ -191,16 +191,16 @@ const CSS = `
 /* ── 参考图版式：数值卡片网格 + Token 环形图 ───────────────────── */
 .axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(11px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(3px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(5px * var(--axia-fs,1)); }
 .axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(15px * var(--axia-fs,1)); }
-.axia_tiles { display: grid; gap: calc(5px * var(--axia-fs,1)); grid-template-columns: repeat(2, minmax(0,1fr)); }
+.axia_tiles { display: grid; gap: calc(4px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
 .axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(8px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(6px * var(--axia-fs,1)); justify-content: space-between; padding: calc(3px * var(--axia-fs,1)) calc(7px * var(--axia-fs,1)); }
 .axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(16px * var(--axia-fs,1)); text-align: right; }
-.axia_ringbody { align-items: center; display: flex; gap: calc(12px * var(--axia-fs,1)); }
-.axia_ringwrap { flex: none; position: relative; width: calc(72px * var(--axia-fs,1)); }
+.axia_ringbody { align-items: center; display: flex; gap: calc(9px * var(--axia-fs,1)); }
+.axia_ringwrap { flex: none; position: relative; width: calc(58px * var(--axia-fs,1)); }
 .axia_ring { display: block; height: auto; width: 100%; }
 .axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(13px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; left: 0; line-height: calc(16px * var(--axia-fs,1)); position: absolute; right: 0; text-align: center; top: calc(37px * var(--axia-fs,1)); }
 .axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); left: 0; line-height: calc(11px * var(--axia-fs,1)); position: absolute; right: 0; text-align: center; top: calc(53px * var(--axia-fs,1)); }
-.axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(5px * var(--axia-fs,1)); min-width: 0; }
+.axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(3px * var(--axia-fs,1)); min-width: 0; }
 .axia_legenditem { display: flex; flex-direction: column; gap: calc(1px * var(--axia-fs,1)); }
 .axia_legendrow { align-items: center; display: flex; gap: calc(6px * var(--axia-fs,1)); }
 .axia_legenddot { border-radius: 2px; flex: none; height: calc(8px * var(--axia-fs,1)); width: calc(8px * var(--axia-fs,1)); }
