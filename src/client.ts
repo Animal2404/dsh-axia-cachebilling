@@ -21,7 +21,7 @@ const CSS = `
 .axia_bill {
   margin-top: calc(10px * var(--axia-fs, 1));
   padding-top: calc(10px * var(--axia-fs, 1));
-  border-top: 1px solid var(--dsw-alias-border-l3, rgba(255, 255, 255, 0.08));
+  border-top: 1px solid var(--dsw-alias-border-l3, transparent);
   position: relative;
 }
 .axia_bill::before {
@@ -90,7 +90,7 @@ const CSS = `
 .axia_card {
   position: relative;
   background: color-mix(in srgb, currentColor 3.5%, transparent);
-  border: 1px solid var(--dsw-alias-border-l4, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--dsw-alias-border-l3, transparent);
   border-radius: calc(10px * var(--axia-fs, 1));
   display: flex;
   flex-direction: column;
@@ -101,7 +101,7 @@ const CSS = `
   backdrop-filter: blur(12px);
 }
 .axia_card:hover {
-  border-color: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.18));
+  border-color: var(--dsw-alias-border-l2, transparent);
   background: color-mix(in srgb, currentColor 6%, transparent);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.3);
@@ -111,11 +111,11 @@ const CSS = `
 .axia_card_hero {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.06) 50%, color-mix(in srgb, currentColor 3%, transparent) 100%);
   border: 1px solid rgba(139, 92, 246, 0.32);
-  box-shadow: 0 4px 18px -4px rgba(99, 102, 241, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 18px -4px rgba(99, 102, 241, 0.18);
 }
 .axia_card_hero:hover {
   border-color: rgba(168, 85, 247, 0.55);
-  box-shadow: 0 6px 22px -4px rgba(139, 92, 246, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 6px 22px -4px rgba(139, 92, 246, 0.32);
 }
 .axia_cardhead {
   align-items: baseline;
@@ -173,7 +173,7 @@ const CSS = `
   gap: calc(4px * var(--axia-fs, 1));
   white-space: nowrap;
   background: color-mix(in srgb, currentColor 3%, transparent);
-  border: 1px solid var(--dsw-alias-border-l4, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--dsw-alias-border-l3, transparent);
   border-radius: calc(5px * var(--axia-fs, 1));
   padding: calc(1.5px * var(--axia-fs, 1)) calc(6px * var(--axia-fs, 1));
   transition: background 0.15s ease;
@@ -212,14 +212,14 @@ const CSS = `
   font-weight: 550;
 }
 /* ── 参考图版式：数值卡片网格 + Token 环形图 ───────────────────── */
-.axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid var(--dsw-alias-border-l4, rgba(255,255,255,.08)); border-radius: calc(12px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(7px * var(--axia-fs,1)); margin-top: calc(7px * var(--axia-fs,1)); padding: calc(9px * var(--axia-fs,1)); }
+.axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid var(--dsw-alias-border-l3, transparent); border-radius: calc(12px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(5px * var(--axia-fs,1)); margin-top: calc(6px * var(--axia-fs,1)); padding: calc(7px * var(--axia-fs,1)); }
 .axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(15px * var(--axia-fs,1)); }
-.axia_tiles { display: grid; gap: calc(6px * var(--axia-fs,1)); grid-template-columns: repeat(2, minmax(0,1fr)); }
-.axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid var(--dsw-alias-border-l4, rgba(255,255,255,.08)); border-radius: calc(9px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(3px * var(--axia-fs,1)); padding: calc(6px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
+.axia_tiles { display: grid; gap: calc(5px * var(--axia-fs,1)); grid-template-columns: repeat(2, minmax(0,1fr)); }
+.axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid var(--dsw-alias-border-l3, transparent); border-radius: calc(8px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(1px * var(--axia-fs,1)); padding: calc(4px * var(--axia-fs,1)) calc(7px * var(--axia-fs,1)); }
 .axia_tilelab { color: var(--dsw-alias-label-secondary); font-size: calc(9px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); }
-.axia_tileval { color: var(--dsw-alias-label-primary); font-size: calc(15px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(19px * var(--axia-fs,1)); text-align: right; }
+.axia_tileval { color: var(--dsw-alias-label-primary); font-size: calc(13px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(17px * var(--axia-fs,1)); text-align: right; }
 .axia_ringbody { align-items: center; display: flex; gap: calc(12px * var(--axia-fs,1)); }
-.axia_ringwrap { flex: none; position: relative; width: calc(96px * var(--axia-fs,1)); }
+.axia_ringwrap { flex: none; position: relative; width: calc(80px * var(--axia-fs,1)); }
 .axia_ring { display: block; height: auto; width: 100%; }
 .axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(13px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; left: 0; line-height: calc(16px * var(--axia-fs,1)); position: absolute; right: 0; text-align: center; top: calc(37px * var(--axia-fs,1)); }
 .axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); left: 0; line-height: calc(11px * var(--axia-fs,1)); position: absolute; right: 0; text-align: center; top: calc(53px * var(--axia-fs,1)); }
@@ -238,7 +238,7 @@ const CSS = `
   gap: calc(6px * var(--axia-fs, 1));
   align-self: flex-start;
   background: color-mix(in srgb, currentColor 3.5%, transparent);
-  border: 1px solid var(--dsw-alias-border-l4, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--dsw-alias-border-l3, transparent);
   border-radius: 999px;
   color: var(--dsw-alias-label-secondary, rgba(255, 255, 255, 0.7));
   font-size: calc(9.5px * var(--axia-fs, 1));
