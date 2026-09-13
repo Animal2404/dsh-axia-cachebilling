@@ -534,7 +534,6 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
     grid.appendChild(box)
   }
 
-   *  币种统一走模块级 formatUnifiedMoney（与 renderBill 同一函数、同一汇率），所以这里只会出现一种符号。 */
   const sum3 = (a: unknown, b: unknown, c: unknown): number | null => {
     const parts = [num(a), num(b), num(c)]
     if (parts.some((v) => v === null)) return null
