@@ -233,6 +233,34 @@ const CSS = `
 .axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(14px * var(--axia-fs,1)); text-align: right; }
    只用 grid 跨列，不写死像素、不做绝对定位。 */
 .axia_tile.is-wide { grid-column: span 2; }
+.axia_ringbody { align-items: center; display: flex; gap: calc(8px * var(--axia-fs,1)); }
+.axia_ringwrap { flex: none; position: relative; width: calc(76px * var(--axia-fs,1)); }
+.axia_ring { display: block; height: auto; width: 100%; }
+/* 环心覆盖层：inset:0 + flex 居中——环径怎么变，环心文字都在正中间（旧版 top:37px/53px 是按 96px 环写死的） */
+.axia_ringcenter {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+}
+/* 环心文字：环径 58px（--axia-fs=1）时环内切圆半径只有 ~18.45px，两行合起来总宽必须 ≤ 2×√(18.45²−(h/2)²)。
+   按 8px 主数字（行高 9.6px，6 字符宽 ~19.3px）+ 6.5px 标签（行高 8.5px，4 字宽 ~18.1px）算：
+   总高 18.1px → 允许宽 32.5px；两行都在 20px 内，稳稳落在环内、不压环带。字号同样挂 --axia-fs。 */
+.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 700; line-height: calc(13px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
+.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(7.5px * var(--axia-fs,1)); line-height: calc(9px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
+.axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); min-width: 0; }
+.axia_legenditem { display: flex; flex-direction: column; min-width: 0; }
+.axia_legendrow { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); }
+.axia_legenddot { align-self: center; border-radius: 2px; flex: none; height: calc(7px * var(--axia-fs,1)); width: calc(7px * var(--axia-fs,1)); }
+.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; white-space: nowrap; }
+.axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; }
+/* token 数并到同一行（原来单独占一行，白吃 3×11px 行高）：等宽数字、右对齐，不与百分比抢视线 */
+.axia_legendtokens { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
+/* 图例每项的 token 数（子行，缩进对齐标签列） */
+.axia_legendsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(13px * var(--axia-fs,1)); }
 
 /* 底部模型微胶囊 */
 .axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
@@ -286,8 +314,8 @@ function isBillableProvider(provider: unknown): boolean {
 /** 金额格式化，无货币符号：小于 0.01 四舍五入保留一位有效数字（0.0047→0.005，0.0003 依稀可辨），大于等于 0.01 四舍五入到分，0 恒显示 0。 */
 function formatAmount(amount: number): string {
   if (!Number.isFinite(amount) || amount <= 0) return '0'
-  // 完整数值：最多 10 位小数后去尾随零；不缩写、不做有效数字截断（不丢位数）
-  return Number(amount.toFixed(10)).toString()
+  // 小数点后 4 位（用户指定精度）
+  return Number(amount.toFixed(4)).toString()
 }
 
 /**
@@ -450,7 +478,13 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
 }
 
 /** token 数紧凑写法：845.3M / 3.7M / 1.5k */
-
+function compactTokens(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0'
+  if (value >= 1e9) return `${(value / 1e9).toFixed(1)}B`
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}k`
+  return String(Math.round(value))
+}
 
 /**
  *
@@ -519,6 +553,7 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
 }
 
 /**
+ * 两块面板：①「上下文统计」2×4 数值卡片网格（真实事件计数）；②「Token 统计」环形图 + 图例 + 环心命中率。
  *
  * 不加进场动画是刻意的：账单每来一个 usage 事件就重绘一次，动效会变成持续闪烁（Emil 的规矩：
  * 高频更新的数字不要做入场动画）。环图只表达比例，不做插值补间，避免和重绘打架。
@@ -540,6 +575,65 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   // 所以这里换成真实事件计数的「上下文统计」面板；它不依赖 token 用量，故在下面的 early-return 之前渲染。
   renderContextStats(doc, put, view)
 
+  const inputTokens = num(view.sessionInputTokens)
+  const readTokens = Math.min(num(view.sessionCacheReadTokens), inputTokens)
+  const outputTokens = num(view.sessionOutputTokens)
+  const missTokens = Math.max(0, inputTokens - readTokens)
+  const totalTokens = inputTokens + outputTokens
+  if (totalTokens <= 0) return
+
+  const pctOf = (value: number): number => (totalTokens > 0 ? (value / totalTokens) * 100 : 0)
+  const hitPct = inputTokens > 0 ? (readTokens / inputTokens) * 100 : 0
+  const slices = [
+    { pct: pctOf(readTokens), color: '#22c55e' },
+    { pct: pctOf(missTokens), color: '#a855f7' },
+    { pct: pctOf(outputTokens), color: '#3b82f6' },
+  ]
+
+  const second = doc.createElement('div')
+  second.className = 'axia_panel'
+  const head2 = doc.createElement('div')
+  head2.className = 'axia_panelhead'
+  head2.textContent = 'Token 统计'
+  second.appendChild(head2)
+  const body = doc.createElement('div')
+  body.className = 'axia_ringbody'
+
+  
+
+  const legend = doc.createElement('div')
+  legend.className = 'axia_legend'
+  const legendRow = (color: string, label: string, pct: number, tokens: number, hint: string): void => {
+    const item = doc.createElement('div')
+    item.className = 'axia_legenditem'
+    const line = doc.createElement('div')
+    line.className = 'axia_legendrow'
+    line.title = hint
+    const dot = doc.createElement('span')
+    dot.className = 'axia_legenddot'
+    dot.style.background = color
+    const lab = doc.createElement('span')
+    lab.className = 'axia_legendlab'
+    lab.textContent = label
+    const val = doc.createElement('span')
+    val.className = 'axia_legendval'
+    val.textContent = `${pct.toFixed(1)}%`
+    line.appendChild(dot)
+    line.appendChild(lab)
+    line.appendChild(val)
+    const sub = doc.createElement('div')
+    sub.className = 'axia_legendsub'
+    sub.textContent = compactTokens(tokens)
+    item.appendChild(line)
+    item.appendChild(sub)
+    legend.appendChild(item)
+  }
+  legendRow('#22c55e', '缓存输入', pctOf(readTokens), readTokens, '命中缓存、按缓存价计费的输入 token')
+  legendRow('#a855f7', '未缓存输入', pctOf(missTokens), missTokens, '未命中缓存的输入 token（按未命中价计费）')
+  legendRow('#3b82f6', '输出', pctOf(outputTokens), outputTokens, '模型生成的输出 token')
+  body.appendChild(legend)
+  second.appendChild(body)
+  put(second)
 }
 
 /* ── 汇率：把「元」与「美元」统一成条目计费币种 ─────────────────────────
