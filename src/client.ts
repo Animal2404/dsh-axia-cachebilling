@@ -314,7 +314,7 @@ function isBillableProvider(provider: unknown): boolean {
 /** 金额格式化，无货币符号：小于 0.01 四舍五入保留一位有效数字（0.0047→0.005，0.0003 依稀可辨），大于等于 0.01 四舍五入到分，0 恒显示 0。 */
 function formatAmount(amount: number): string {
   if (!Number.isFinite(amount) || amount <= 0) return '0'
-  // 完整数值：最多 10 位小数后去掉尾随零，绝不缩写、不做有效数字截断（用户要求：不丢位数）
+  // 完整数值：最多 10 位小数后去尾随零；不缩写、不做有效数字截断（不丢位数）
   return Number(amount.toFixed(10)).toString()
 }
 
@@ -575,7 +575,106 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   // 所以这里换成真实事件计数的「上下文统计」面板；它不依赖 token 用量，故在下面的 early-return 之前渲染。
   renderContextStats(doc, put, view)
 
-  
+  const inputTokens = num(view.sessionInputTokens)
+  const readTokens = Math.min(num(view.sessionCacheReadTokens), inputTokens)
+  const outputTokens = num(view.sessionOutputTokens)
+  const missTokens = Math.max(0, inputTokens - readTokens)
+  const totalTokens = inputTokens + outputTokens
+  if (totalTokens <= 0) return
+
+  const pctOf = (value: number): number => (totalTokens > 0 ? (value / totalTokens) * 100 : 0)
+  const hitPct = inputTokens > 0 ? (readTokens / inputTokens) * 100 : 0
+  const slices = [
+    { pct: pctOf(readTokens), color: '#22c55e' },
+    { pct: pctOf(missTokens), color: '#a855f7' },
+    { pct: pctOf(outputTokens), color: '#3b82f6' },
+  ]
+
+  const second = doc.createElement('div')
+  second.className = 'axia_panel'
+  const head2 = doc.createElement('div')
+  head2.className = 'axia_panelhead'
+  head2.textContent = 'Token 统计'
+  second.appendChild(head2)
+  const body = doc.createElement('div')
+  body.className = 'axia_ringbody'
+
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+  const size = 96
+  const radius = 36
+  const stroke = 11
+  const circumference = 2 * Math.PI * radius
+  const svg = doc.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`)
+  svg.setAttribute('class', 'axia_ring')
+  let consumed = 0
+  for (const slice of slices) {
+    if (slice.pct <= 0) continue
+    const arc = doc.createElementNS(SVG_NS, 'circle')
+    arc.setAttribute('cx', String(size / 2))
+    arc.setAttribute('cy', String(size / 2))
+    arc.setAttribute('r', String(radius))
+    arc.setAttribute('fill', 'none')
+    arc.setAttribute('stroke', slice.color)
+    arc.setAttribute('stroke-width', String(stroke))
+    arc.setAttribute('stroke-dasharray', `${(circumference * slice.pct) / 100} ${circumference}`)
+    arc.setAttribute('stroke-dashoffset', String(-consumed))
+    arc.setAttribute('transform', `rotate(-90 ${size / 2} ${size / 2})`)
+    consumed += (circumference * slice.pct) / 100
+    svg.appendChild(arc)
+  }
+  const ringWrap = doc.createElement('div')
+  ringWrap.className = 'axia_ringwrap'
+  ringWrap.appendChild(svg as unknown as HTMLElement)
+  // 环心文字必须住在覆盖层里：覆盖层 inset:0 + flex 居中（见 CSS .axia_ringcenter），
+  // 直接挂 ringWrap 会被当成 flex 兄弟挤到环下方/外侧。
+  const ringCenter = doc.createElement('div')
+  ringCenter.className = 'axia_ringcenter'
+  const centerPct = doc.createElement('div')
+  centerPct.className = 'axia_ringpct'
+  centerPct.textContent = `${hitPct.toFixed(2)}%`
+  const centerSub = doc.createElement('div')
+  centerSub.className = 'axia_ringsub'
+  centerSub.textContent = '缓存命中'
+  ringCenter.appendChild(centerPct)
+  ringCenter.appendChild(centerSub)
+  ringWrap.appendChild(ringCenter)
+  body.appendChild(ringWrap)
+
+  const legend = doc.createElement('div')
+  legend.className = 'axia_legend'
+  const legendRow = (color: string, label: string, pct: number, tokens: number, hint: string): void => {
+    const item = doc.createElement('div')
+    item.className = 'axia_legenditem'
+    const line = doc.createElement('div')
+    line.className = 'axia_legendrow'
+    line.title = hint
+    const dot = doc.createElement('span')
+    dot.className = 'axia_legenddot'
+    dot.style.background = color
+    const lab = doc.createElement('span')
+    lab.className = 'axia_legendlab'
+    lab.textContent = label
+    const val = doc.createElement('span')
+    val.className = 'axia_legendval'
+    val.textContent = `${pct.toFixed(1)}%`
+    line.appendChild(dot)
+    line.appendChild(lab)
+    line.appendChild(val)
+    const sub = doc.createElement('div')
+    sub.className = 'axia_legendsub'
+    sub.textContent = compactTokens(tokens)
+    item.appendChild(line)
+    item.appendChild(sub)
+    legend.appendChild(item)
+  }
+  legendRow('#22c55e', '缓存输入', pctOf(readTokens), readTokens, '命中缓存、按缓存价计费的输入 token')
+  legendRow('#a855f7', '未缓存输入', pctOf(missTokens), missTokens, '未命中缓存的输入 token（按未命中价计费）')
+  legendRow('#3b82f6', '输出', pctOf(outputTokens), outputTokens, '模型生成的输出 token')
+  body.appendChild(legend)
+  second.appendChild(body)
+  put(second)
+}
 
 /* ── 汇率：把「元」与「美元」统一成条目计费币种 ─────────────────────────
    来源必须可核实：open.er-api.com（返回 rates.CNY 与 time_last_update_utc）。
