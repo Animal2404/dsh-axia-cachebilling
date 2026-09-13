@@ -240,15 +240,15 @@ const CSS = `
 .axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 700; line-height: calc(13px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
 .axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(7.5px * var(--axia-fs,1)); line-height: calc(9px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
 .axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); min-width: 0; }
-.axia_legenditem { display: flex; flex-direction: column; min-width: 0; }
-.axia_legendrow { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); }
-.axia_legenddot { align-self: center; border-radius: 2px; flex: none; height: calc(7px * var(--axia-fs,1)); width: calc(7px * var(--axia-fs,1)); }
-.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; white-space: nowrap; }
-.axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; }
+.axia_legenditem { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); min-width: 0; }
+.axia_legendrow { display: contents; }
+.axia_legenddot { align-self: center; border-radius: 2px; flex: none; height: calc(7px * var(--axia-fs,1)); order: 0; width: calc(7px * var(--axia-fs,1)); }
+.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: none; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; white-space: nowrap; order: 1; }
+.axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; margin-left: auto; order: 3; }
 /* token 数并到同一行（原来单独占一行，白吃 3×11px 行高）：等宽数字、右对齐，不与百分比抢视线 */
 .axia_legendtokens { color: var(--dsw-alias-label-primary); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
 /* 图例每项的 token 数（子行，缩进对齐标签列） */
-.axia_legendsub { color: var(--dsw-alias-label-primary); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(13px * var(--axia-fs,1)); }
+.axia_legendsub { color: var(--dsw-alias-label-primary); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; line-height: calc(11px * var(--axia-fs,1)); order: 2; white-space: nowrap; }
 
 /* 底部模型微胶囊 */
 .axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
