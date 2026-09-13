@@ -52,6 +52,14 @@ dsh plugin --profile web add github:Animal2404/dsh-axia-cachebilling
 - 源码：`src/index.ts`（宿主投影：按会话事件流计价与计数）、`src/client.ts`（弹层 UI）、`src/settings.ts`（设置页 UI）、`src/prices.ts`（价目目录拉取与匹配）；
 - 价目目录：仓库根 `price-catalog.json`，客户端按需拉取并缓存。
 
+## 贡献者
+
+| 贡献者 | 角色 |
+|---|---|
+| [@Animal2404](https://github.com/Animal2404) | 本仓库维护者 |
+| [@Phant0Meow](https://github.com/Phant0Meow) | 最初 `dsh-cache-billing` 的作者（三档账单思路与实现基础）|
+| [@better-er](https://github.com/better-er) | 大幅重写者（三级账单、第三方中转支持、缓存失效统计）|
+
 ## 致谢与出处
 
 本插件基于同生态下的 MIT 项目演进而来，特此注明：
