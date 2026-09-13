@@ -87,19 +87,7 @@ const CSS = `
 }
 
 /* 账单卡片（现代化 Bento 质感）：浅底 + 细微渐变描边 + 悬浮微动效 */
-.axia_card {
-  position: relative;
-  background: color-mix(in srgb, currentColor 3.5%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 7%, transparent);
-  border-radius: calc(10px * var(--axia-fs, 1));
-  display: flex;
-  flex-direction: column;
-  gap: calc(5px * var(--axia-fs, 1));
-  margin-top: calc(6px * var(--axia-fs, 1));
-  padding: calc(8px * var(--axia-fs, 1)) calc(12px * var(--axia-fs, 1));
-  transition: border-color 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, background 0.18s ease;
-  backdrop-filter: blur(12px);
-}
+.axia_card { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(10px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(5px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
 .axia_card:hover {
   border-color: var(--dsw-alias-border-l2, transparent);
   background: color-mix(in srgb, currentColor 6%, transparent);
@@ -133,14 +121,7 @@ const CSS = `
   color: #c4b5fd;
   font-weight: 600;
 }
-.axia_cardsum {
-  color: var(--dsw-alias-label-primary, #ffffff);
-  font-size: calc(14.5px * var(--axia-fs, 1));
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  line-height: calc(18px * var(--axia-fs, 1));
-  white-space: nowrap;
-}
+.axia_cardsum { color: var(--dsw-alias-label-primary); font-size: calc(15px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(18px * var(--axia-fs,1)); white-space: nowrap; }
 .axia_card_hero .axia_cardsum {
   font-size: calc(15.5px * var(--axia-fs, 1));
   color: #ffffff;
@@ -162,11 +143,7 @@ const CSS = `
 }
 
 /* 芯片明细行 */
-.axia_chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(3px * var(--axia-fs, 1)) calc(8px * var(--axia-fs, 1));
-}
+.axia_chips { display: flex; flex-wrap: wrap; gap: calc(2px * var(--axia-fs,1)) calc(10px * var(--axia-fs,1)); }
 .axia_chip {
   align-items: center;
   display: inline-flex;
@@ -212,7 +189,7 @@ const CSS = `
   font-weight: 550;
 }
 /* ── 参考图版式：数值卡片网格 + Token 环形图 ───────────────────── */
-.axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(12px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(4px * var(--axia-fs,1)); margin-top: calc(5px * var(--axia-fs,1)); padding: calc(6px * var(--axia-fs,1)); }
+.axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(11px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(3px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(5px * var(--axia-fs,1)); }
 .axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(15px * var(--axia-fs,1)); }
 .axia_tiles { display: grid; gap: calc(5px * var(--axia-fs,1)); grid-template-columns: repeat(2, minmax(0,1fr)); }
 .axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(8px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(6px * var(--axia-fs,1)); justify-content: space-between; padding: calc(3px * var(--axia-fs,1)) calc(7px * var(--axia-fs,1)); }
@@ -232,21 +209,7 @@ const CSS = `
 .axia_legendsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(14px * var(--axia-fs,1)); }
 
 /* 底部模型微胶囊 */
-.axia_modelpill {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(6px * var(--axia-fs, 1));
-  align-self: flex-start;
-  background: color-mix(in srgb, currentColor 3.5%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 7%, transparent);
-  border-radius: 999px;
-  color: var(--dsw-alias-label-secondary, rgba(255, 255, 255, 0.7));
-  font-size: calc(9.5px * var(--axia-fs, 1));
-  line-height: calc(13px * var(--axia-fs, 1));
-  margin-top: calc(7px * var(--axia-fs, 1));
-  padding: calc(3px * var(--axia-fs, 1)) calc(10px * var(--axia-fs, 1));
-  backdrop-filter: blur(8px);
-}
+.axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary, rgba(255,255,255,0.7)); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(6px * var(--axia-fs,1)); line-height: calc(13px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(9px * var(--axia-fs,1)); }
 .axia_pill_model {
   font-weight: 500;
 }
