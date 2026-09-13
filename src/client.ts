@@ -178,7 +178,8 @@ const CSS = `
   opacity: 0.45;
 }
 
-/* 芯片明细行 */
+/* 芯片明细行：固定 3 列网格——三行（当前步/当前轮/本会话）结构完全一致，
+   不再 flex-wrap 造成「当前步」挤成 2+1 而另两行 3 个一排。 */
 .axia_chips { display: grid; gap: calc(4px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
 .axia_chip {
   align-items: center;
@@ -194,6 +195,38 @@ const CSS = `
 .axia_chip:hover {
   background: color-mix(in srgb, currentColor 6%, transparent);
 }
+/* 芯片内部件：状态点 / 标签 / 金额。三行共用同一套，行与行之间没有任何差异。 */
+.axia_chipdot { border-radius: 50%; flex: none; height: calc(5px * var(--axia-fs, 1)); width: calc(5px * var(--axia-fs, 1)); }
+.axia_dot_hit { background: #10b981; }
+.axia_dot_miss { background: #f59e0b; }
+.axia_dot_out { background: #8b5cf6; }
+.axia_chiplab { color: var(--dsw-alias-label-caption); font-size: calc(9px * var(--axia-fs, 1)); line-height: calc(13px * var(--axia-fs, 1)); }
+.axia_chipval {
+  color: var(--dsw-alias-label-primary);
+  font-size: calc(9.5px * var(--axia-fs, 1));
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+  line-height: calc(13px * var(--axia-fs, 1));
+}
+/* 账单行卡片：三行只差行名与金额，盒子样式完全同款（首行不做任何特殊化） */
+.axia_card {
+  background: color-mix(in srgb, currentColor 3.5%, transparent);
+  border-radius: calc(9px * var(--axia-fs, 1));
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--axia-fs, 1));
+  margin-top: calc(3px * var(--axia-fs, 1));
+  padding: calc(4px * var(--axia-fs, 1)) calc(7px * var(--axia-fs, 1));
+}
+.axia_cardhead { align-items: baseline; display: flex; gap: calc(8px * var(--axia-fs, 1)); justify-content: space-between; }
+.axia_cardname {
+  color: var(--dsw-alias-label-secondary);
+  font-size: calc(10px * var(--axia-fs, 1));
+  font-weight: 500;
+  line-height: calc(13px * var(--axia-fs, 1));
+  white-space: nowrap;
+}
+.axia_cardsum { color: var(--dsw-alias-label-primary); font-size: calc(14px * var(--axia-fs, 1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(17px * var(--axia-fs, 1)); white-space: nowrap; }
 /* ── 数值卡片网格 + Token 环形图 ───────────────────── */
 .axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: calc(9px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(4px * var(--axia-fs,1)); }
 .axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(14px * var(--axia-fs,1)); }
@@ -201,6 +234,9 @@ const CSS = `
 .axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border-radius: calc(7px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(5px * var(--axia-fs,1)); justify-content: space-between; padding: calc(2px * var(--axia-fs,1)) calc(6px * var(--axia-fs,1)); }
 .axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(14px * var(--axia-fs,1)); text-align: right; }
+/* 「预估费用」横向占两格：DOM 里放在最后 + span 2 → 8 格在 3 列网格里排成 3+3+2，行行填满不留空洞。
+   只用 grid 跨列，不写死像素、不做绝对定位。 */
+.axia_tile.is-wide { grid-column: span 2; }
 .axia_ringbody { align-items: center; display: flex; gap: calc(8px * var(--axia-fs,1)); }
 .axia_ringwrap { flex: none; position: relative; width: calc(58px * var(--axia-fs,1)); }
 .axia_ring { display: block; height: auto; width: 100%; }
@@ -214,8 +250,11 @@ const CSS = `
   pointer-events: none;
   position: absolute;
 }
-.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(12.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(15px * var(--axia-fs,1)); }
-.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); }
+/* 环心文字：环径 58px（--axia-fs=1）时环内切圆半径只有 ~18.45px，两行合起来总宽必须 ≤ 2×√(18.45²−(h/2)²)。
+   按 8px 主数字（行高 9.6px，6 字符宽 ~19.3px）+ 6.5px 标签（行高 8.5px，4 字宽 ~18.1px）算：
+   总高 18.1px → 允许宽 32.5px；两行都在 20px 内，稳稳落在环内、不压环带。字号同样挂 --axia-fs。 */
+.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(8px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(9.6px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
+.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(6.5px * var(--axia-fs,1)); line-height: calc(8.5px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
 .axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); min-width: 0; }
 .axia_legenditem { display: flex; flex-direction: column; min-width: 0; }
 .axia_legendrow { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); }
@@ -224,6 +263,8 @@ const CSS = `
 .axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; }
 /* token 数并到同一行（原来单独占一行，白吃 3×11px 行高）：等宽数字、右对齐，不与百分比抢视线 */
 .axia_legendtokens { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
+/* 图例每项的 token 数（子行，缩进对齐标签列） */
+.axia_legendsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(13px * var(--axia-fs,1)); }
 
 /* 底部模型微胶囊 */
 .axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
@@ -311,7 +352,7 @@ function formatUnifiedMoney(cny: number, usd: number, currency: string | undefin
   const yuan = Number.isFinite(cny) ? cny : 0
   const dollar = Number.isFinite(usd) ? usd : 0
   const toUsd = currency === 'USD'
-  const fx = fxState
+  const fx = currentFx()
   if (fx !== null && fx.rate > 0) {
     const total = toUsd ? dollar + yuan / fx.rate : yuan + dollar * fx.rate
     const symbol = toUsd ? '$' : '¥'
@@ -319,7 +360,12 @@ function formatUnifiedMoney(cny: number, usd: number, currency: string | undefin
     return { unified: true, symbol, amount, text: `${symbol}${amount}` }
   }
   const parts: string[] = []
-  if (yuan > 0 || dollar <= 0) parts.push(`¥${formatAmount(yuan)}`)
+  // 两笔都是 0：符号跟随 view.currency（否则 USD 会话里会冒出 ¥0，看着像混币）
+  if (yuan <= 0 && dollar <= 0) {
+    if (toUsd) return { unified: false, symbol: '$', amount: '0', text: '$0' }
+    return { unified: false, symbol: '¥', amount: '0', text: '¥0' }
+  }
+  if (yuan > 0) parts.push(`¥${formatAmount(yuan)}`)
   if (dollar > 0) parts.push(`$${formatAmount(dollar)}`)
   return { unified: false, symbol: '¥', amount: formatAmount(yuan), text: parts.join(' + ') }
 }
@@ -668,6 +714,23 @@ interface FxState {
 let fxState: FxState | null = null
 let fxLoading = false
 
+/**
+ * 当前可用汇率（只读）：内存 → 本地缓存的同步兜底。
+ *
+ * 为什么加这一层：本会话首帧渲染发生在 ensureFx 的 fetch 落地之前，若只看内存，首帧会走「两笔分列」的降级
+ * 写法（USD 会话里冒出 ¥0），下一帧才跳成单币种——同一块面板两次渲染两种口径。缓存本来就是同步可读的，
+ * 所以首帧也直接用它：有缓存（TTL 内）就立刻统一；真的没缓存才降级，且降级同样只此一帧。
+ */
+function currentFx(): FxState | null {
+  if (fxState === null) {
+    const cached = readFxCache()
+    if (cached !== null && Number.isFinite(Date.parse(cached.updatedAt)) && Date.now() - Date.parse(cached.updatedAt) < FX_TTL_MS) {
+      fxState = cached
+    }
+  }
+  return fxState
+}
+
 function readFxCache(): FxState | null {
   try {
     const raw = window.localStorage.getItem(FX_KEY)
@@ -689,11 +752,8 @@ function readFxCache(): FxState | null {
 /** 幂等：只在没汇率时拉一次（含进行中的去重），拿到后刷新已打开的弹层。 */
 function ensureFx(): void {
   if (fxState !== null || fxLoading) return
-  const cached = readFxCache()
-  if (cached !== null && Number.isFinite(Date.parse(cached.updatedAt)) && Date.now() - Date.parse(cached.updatedAt) < FX_TTL_MS) {
-    fxState = cached
-    return
-  }
+  const cached = currentFx()
+  if (cached !== null) return
   fxLoading = true
   fetch('https://open.er-api.com/v6/latest/USD')
     .then((res) => res.json())
@@ -767,7 +827,7 @@ function renderBill(bill: HTMLElement): void {
 
   /** 汇率说明（tooltip 共用）：金额按哪个汇率折的，一眼可见；没汇率时说明为什么分列。 */
   const fxNote = (): string => {
-    const fx = fxState
+    const fx = currentFx()
     if (fx === null || !(fx.rate > 0)) return '未取到汇率，暂按币种分别列出'
     return `按 1 USD = ${fx.rate} CNY 折算（来源 ${fx.source}${fx.stale ? ' · 本地缓存' : ''}，更新于 ${fx.updatedAt}）`
   }
@@ -863,7 +923,7 @@ function renderBill(bill: HTMLElement): void {
     moneyPlain(sessionHit, sessionHitUsd),
     moneyPlain(sessionMiss, sessionMissUsd),
     moneyPlain(sessionOut, sessionOutUsd),
-    true,
+    true, // Hero：只有「本会话」行加重（首行「当前步」与「当前轮」完全同款）
   )
 
   renderStats(doc, put, view)
