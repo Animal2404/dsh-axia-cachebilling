@@ -685,17 +685,29 @@ export function collectPriceSources(catalog: PriceCatalog | null): PriceSourceSu
   }
 }
 
+/** 本地时钟短格式 HH:MM:SS（「最近拉取」用）；null → 破折号。手写补零，不依赖 Intl/ICU。 */
+function fmtClock(t: number | null): string {
+  if (t === null) return '—'
+  const d = new Date(t)
+  const p2 = (n: number): string => String(n).padStart(2, '0')
+  return `${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`
+}
+
 /** 「价格来源」面板本体（纯函数、无 hook：离线渲染断言直接调它）。 */
 export function PriceSourcesPanel(props: {
   catalog: PriceCatalog | null
   loading: boolean
+  /** 最近一次成功拉取目录的本地时钟：由 BillingCard 持有、props 传进来（面板本身不接 state、不读外层变量） */
+  lastFetched?: number | null
+  /** 刚点过「刷新价格」：亮 2 秒「已刷新 ✓」（同样走 props） */
+  justRefreshed?: boolean
   onRefresh: () => void
   onClose: () => void
 }): any {
   const summary = collectPriceSources(props.catalog)
   const updatedAt = props.catalog?.updatedAt
   const meta = summary.fromCatalog
-    ? `${summary.rows.length} 个来源 · ${summary.total ?? 0} 条价目${updatedAt ? ` · 更新于 ${updatedAt}` : ''}`
+    ? `${summary.rows.length} 个来源 · ${summary.total ?? 0} 条价目${updatedAt ? ` · 内容版本 ${updatedAt}` : ''} · 最近拉取 ${fmtClock(props.lastFetched ?? null)}${props.justRefreshed ? ' · 已刷新 ✓' : ''}`
     : '兜底清单 · 未能读取价目表'
   return el(
     'div',
@@ -792,6 +804,12 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   }>({ status: 'idle', catalog: null, note: null })
   /** 「价格来源」面板开关：与行内展开编辑器并排共存，互不干扰。 */
   const [showSources, setShowSources] = React.useState(false)
+  /** 最近一次成功拉到目录的本地时钟（「最近拉取」显示用；会话级，不落盘） */
+  const [lastFetched, setLastFetched] = React.useState<number | null>(null)
+  /** 刚点过「刷新价格」的即时反馈（「已刷新 ✓」），2 秒后自动收起 */
+  const [justRefreshed, setJustRefreshed] = React.useState(false)
+  /** 收起定时器：连点刷新时先清上一个，免得前一次把后一次的反馈提前收掉 */
+  const refreshFlashTimer = React.useRef<number | null>(null)
   /** 用户是否亲手改过模型字段：只有新条目或手改过模型才自动套目录价，编辑旧条目时不能覆盖已存的价格 */
   const modelTouched = React.useRef(false)
   /** 上一次由目录自动写进去的版本名：换模型时能安全覆盖它，但绝不动用户手写的版本名 */
@@ -924,6 +942,15 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
   const refreshPrices = async (force: boolean, thenApply: boolean): Promise<void> => {
     setPrices((prev) => ({ ...prev, status: 'loading' }))
     const catalog = await loadPriceCatalog(force)
+    if (catalog !== null) {
+      setLastFetched(Date.now())
+      // force = 用户亲手点了「刷新价格」：亮 2 秒「已刷新 ✓」（面板概述行与设置页提示行都看得到）
+      if (force) {
+        setJustRefreshed(true)
+        if (refreshFlashTimer.current !== null) window.clearTimeout(refreshFlashTimer.current)
+        refreshFlashTimer.current = window.setTimeout(() => setJustRefreshed(false), 2000)
+      }
+    }
     if (catalog === null) {
       setPrices({ status: 'error', catalog: null, note: '价格目录拉取失败：稍后再点一次「刷新价格」，或直接手填' })
       return
@@ -947,6 +974,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     void (async () => {
       const catalog = await loadPriceCatalog(false)
       if (cancelled) return
+      if (catalog !== null) setLastFetched(Date.now())
       setPrices((prev) =>
         catalog === null
           ? { ...prev, status: 'error', note: prev.note ?? '价格目录拉取失败：稍后再点一次「刷新价格」，或直接手填' }
@@ -1297,7 +1325,7 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
               prices.status === 'loading' ? '拉取中…' : '刷新价格',
             ),
             prices.catalog !== null
-              ? el('span', { className: 'axia_set_hint' }, `目录更新于 ${prices.catalog.updatedAt}`)
+              ? el('span', { className: 'axia_set_hint' }, `内容版本 ${prices.catalog.updatedAt ?? '—'} · 最近拉取 ${fmtClock(lastFetched)}${justRefreshed ? ' · 已刷新 ✓' : ''}`)
               : null,
           ),
           prices.note ? el('p', { className: 'axia_set_note' }, prices.note) : null,
@@ -1482,6 +1510,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
       ? el(PriceSourcesPanel, {
           catalog: prices.catalog,
           loading: prices.status === 'loading',
+          lastFetched,
+          justRefreshed,
           onRefresh: () => void refreshPrices(true, false),
           onClose: () => setShowSources(false),
         })
