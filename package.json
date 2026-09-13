@@ -1,7 +1,7 @@
 {
   "name": "dsh-axia-cachebilling",
   "version": "0.6.3",
-  "description": "虾算账：上下文圆环弹层里实时算账——一步/一轮/会话三行各带总价，缓存命中/未命中/输出三列明细的无边框小账表，外加当前模型的平均累计花费曲线（帮你赶在花销起飞前换窗口），峰谷/一口价自动计价（价目表 rates.yml 可手填），专治『缓存命中率 100% 却越用越贵』",
+  "description": "虾算账：DSH 缓存账单插件 —— 上下文弹层实时算账（三档账单 + 真实事件计数 + Token 统计 + 实时汇率统一币种），价目目录自动填价",
   "keywords": [
     "deepseek-harness",
     "dsh",
@@ -15,7 +15,7 @@
     "type": "git",
     "url": "git+https://github.com/Animal2404/dsh-axia-cachebilling.git"
   },
-  "author": "Phant0Meow",
+  "author": "Animal2404",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -39,7 +39,9 @@
     },
     "client": {
       "platform": "web",
-      "inject": ["@deepseek-ai/dsh-client-ui-settings-plugins"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
     }
   },
   "scripts": {
