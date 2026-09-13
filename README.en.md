@@ -47,6 +47,14 @@ Restart DSH, then open any session's **context-usage popover**.
 - Sources: `src/index.ts` (host projection: pricing + event counters), `src/client.ts` (popover UI), `src/settings.ts` (settings UI), `src/prices.ts` (catalog fetch/match);
 - Catalog: `price-catalog.json` at the repo root, fetched and cached by the client.
 
+## Contributors
+
+| Contributor | Role |
+|---|---|
+| [@Animal2404](https://github.com/Animal2404) | Maintainer of this repository |
+| [@Phant0Meow](https://github.com/Phant0Meow) | Author of the original `dsh-cache-billing` (three-tier billing idea and first implementation) |
+| [@better-er](https://github.com/better-er) | Major rewrite (three tiers, third-party relay support, cache-invalidation stats) |
+
 ## Credits
 
 Evolved from MIT-licensed projects in the same ecosystem:
