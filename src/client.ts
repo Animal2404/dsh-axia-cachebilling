@@ -19,9 +19,9 @@ const CSS_ID = 'dsh-axia-cachebilling-css'
 const CSS = `
 /* 所有尺寸乘 --axia-fs（字号档位，见 settings.ts 的 applyFontScale）：大屏远距离直接调档，不用动浏览器缩放 */
 .axia_bill {
-  margin-top: calc(10px * var(--axia-fs, 1));
-  padding-top: calc(10px * var(--axia-fs, 1));
-  border-top: 1px solid color-mix(in srgb, currentColor 7%, transparent);
+  /* 无描边：与官方上下文区之间只留一道紫色渐变发丝线（::before），不再用白色 border-top */
+  margin-top: calc(8px * var(--axia-fs, 1));
+  padding-top: calc(8px * var(--axia-fs, 1));
   position: relative;
 }
 .axia_bill::before {
@@ -49,97 +49,133 @@ const CSS = `
 .axia_h { color: var(--dsw-alias-label-secondary); font-weight: 400; text-align: center; white-space: nowrap; }
 .axia_v { font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-primary); font-weight: 500; text-align: center; }
 
+/* 无描边基线：下面这些容器一律 0 宽 + 透明描边色——层次只用背景色/圆角/间距表达，
+   绝不出现白色描边或内高光；探针量 borderTop 必须是「0px rgba(0,0,0,0)」。 */
+.axia_card,
+.axia_chip,
+.axia_panel,
+.axia_tile,
+.axia_modelpill,
+.axia_ledger,
+.axia_lrow,
+.axia_sechead_icon,
+.axia_notice {
+  border: 0 solid transparent;
+}
+
 /* 标题区：微发光货币芯片与排版 */
 .axia_sechead {
   display: flex;
   align-items: center;
-  gap: calc(7px * var(--axia-fs, 1));
-  color: var(--dsw-alias-label-primary, #ffffff);
-  margin: calc(4px * var(--axia-fs, 1)) 0 calc(6px * var(--axia-fs, 1));
+  gap: calc(6px * var(--axia-fs, 1));
+  color: var(--dsw-alias-label-primary);
+  margin: calc(2px * var(--axia-fs, 1)) 0 calc(4px * var(--axia-fs, 1));
   font-size: calc(12px * var(--axia-fs, 1));
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+.axia_sechead_title { flex: 1; }
+/* 节标题右侧的汇率小字（不占额外行高）：金额按哪个汇率折的，一眼可见，细节在 title 里 */
+.axia_ratecap {
+  color: var(--dsw-alias-label-caption);
+  font-size: calc(9px * var(--axia-fs, 1));
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  white-space: nowrap;
 }
 .axia_sechead_icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: calc(18px * var(--axia-fs, 1));
-  height: calc(18px * var(--axia-fs, 1));
-  border-radius: 5px;
+  width: calc(15px * var(--axia-fs, 1));
+  height: calc(15px * var(--axia-fs, 1));
+  border-radius: 4px;
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(236, 72, 153, 0.18) 100%);
   color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.18);
   flex: none;
 }
 .axia_subhead { color: var(--dsw-alias-label-secondary); font-size: calc(10px * var(--axia-fs, 1)); line-height: calc(14px * var(--axia-fs, 1)); font-weight: 700; }
 .axia_foot { margin-top: calc(6px * var(--axia-fs, 1)); color: var(--dsw-alias-label-caption); font-size: calc(10px * var(--axia-fs, 1)); line-height: calc(14px * var(--axia-fs, 1)); }
 .axia_notice {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: 8px;
-  padding: calc(6px * var(--axia-fs, 1)) calc(9px * var(--axia-fs, 1));
+  /* 警示靠底色 + 左侧琥珀色内阴影条（不是 border），全程无描边 */
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.55);
+  border-radius: 6px;
+  padding: calc(5px * var(--axia-fs, 1)) calc(8px * var(--axia-fs, 1));
   color: #fbbf24;
   font-size: calc(10px * var(--axia-fs, 1));
   line-height: calc(14px * var(--axia-fs, 1));
-  margin-bottom: calc(6px * var(--axia-fs, 1));
+  margin-bottom: calc(4px * var(--axia-fs, 1));
 }
 
-/* 账单卡片（现代化 Bento 质感）：浅底 + 细微渐变描边 + 悬浮微动效 */
-.axia_card { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(10px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(5px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
-.axia_card:hover {
-  border-color: var(--dsw-alias-border-l2, transparent);
-  background: color-mix(in srgb, currentColor 6%, transparent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.3);
-}
-
-/* 本会话总卡片（Hero Card 高光瞩目）：渐变微光 + 优雅淡紫光环 */
-.axia_card_hero {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.06) 50%, color-mix(in srgb, currentColor 3%, transparent) 100%);
-  border: 1px solid rgba(139, 92, 246, 0.32);
-  box-shadow: 0 4px 18px -4px rgba(99, 102, 241, 0.18);
-}
-.axia_card_hero:hover {
-  border-color: rgba(168, 85, 247, 0.55);
-  box-shadow: 0 6px 22px -4px rgba(139, 92, 246, 0.32);
-}
-.axia_cardhead {
-  align-items: baseline;
+/* 账表（Bento 单卡三行）：一行一项，列标签只在表头出现一次，金额右对齐 + 等宽数字。
+   三行数据项一个不少（当前步/当前轮/本会话 × 合计/命中/未命中/输出），只是把三张卡压成一张账表。 */
+.axia_ledger {
+  background: color-mix(in srgb, currentColor 3.5%, transparent);
+  border-radius: calc(9px * var(--axia-fs, 1));
   display: flex;
-  gap: calc(8px * var(--axia-fs, 1));
-  justify-content: space-between;
+  flex-direction: column;
+  gap: calc(1px * var(--axia-fs, 1));
+  margin-top: calc(4px * var(--axia-fs, 1));
+  padding: calc(4px * var(--axia-fs, 1)) calc(6px * var(--axia-fs, 1));
 }
-.axia_cardname {
-  color: var(--dsw-alias-label-secondary, rgba(255, 255, 255, 0.7));
-  font-size: calc(10.5px * var(--axia-fs, 1));
+.axia_lhead,
+.axia_lrow {
+  align-items: baseline;
+  column-gap: calc(6px * var(--axia-fs, 1));
+  display: grid;
+  grid-template-columns: max-content repeat(4, minmax(0, 1fr));
+}
+.axia_lhead {
+  color: var(--dsw-alias-label-caption);
+  font-size: calc(9px * var(--axia-fs, 1));
   font-weight: 500;
-  letter-spacing: 0.1px;
+  line-height: calc(12px * var(--axia-fs, 1));
+  padding: 0 calc(4px * var(--axia-fs, 1));
 }
-.axia_card_hero .axia_cardname {
-  color: #c4b5fd;
-  font-weight: 600;
+.axia_lcol { text-align: right; }
+.axia_lrow {
+  border-radius: calc(5px * var(--axia-fs, 1));
+  font-size: calc(11px * var(--axia-fs, 1));
+  font-variant-numeric: tabular-nums;
+  line-height: calc(15px * var(--axia-fs, 1));
+  padding: calc(1px * var(--axia-fs, 1)) calc(4px * var(--axia-fs, 1));
 }
-.axia_cardsum { color: var(--dsw-alias-label-primary); font-size: calc(15px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(18px * var(--axia-fs,1)); white-space: nowrap; }
-.axia_card_hero .axia_cardsum {
-  font-size: calc(15.5px * var(--axia-fs, 1));
-  color: #ffffff;
-  text-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+.axia_lname {
+  color: var(--dsw-alias-label-secondary);
+  font-size: calc(10px * var(--axia-fs, 1));
+  white-space: nowrap;
 }
+.axia_lmoney {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 550;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.axia_lmoney.is-total { font-weight: 700; }
+/* 本会话行（Hero）：只用一层淡紫底色强调，不加描边也不加投影 */
+.axia_lrow.is-hero {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.1) 62%, transparent 100%);
+  line-height: calc(17px * var(--axia-fs, 1));
+}
+.axia_lrow.is-hero .axia_lname { color: #c4b5fd; font-weight: 600; }
+.axia_lrow.is-hero .axia_lmoney { font-size: calc(12px * var(--axia-fs, 1)); }
 .axia_sym {
-  font-size: 0.82em;
-  opacity: 0.75;
-  margin-right: 1px;
+  font-size: 0.8em;
   font-weight: 600;
+  margin-right: 1px;
+  opacity: 0.7;
 }
-.axia_num {
-  font-weight: 700;
-}
+.axia_num { font-weight: inherit; }
+/* 拿不到汇率时的退化写法：元 + 美元并列（不瞎算，符号小一号） */
+.axia_dual { font-size: calc(10px * var(--axia-fs, 1)); }
 .axia_plus {
-  opacity: 0.45;
   font-size: 0.85em;
   margin: 0 2px;
+  opacity: 0.45;
 }
 
 /* 芯片明细行 */
@@ -158,58 +194,39 @@ const CSS = `
 .axia_chip:hover {
   background: color-mix(in srgb, currentColor 6%, transparent);
 }
-.axia_chipdot {
-  width: calc(5px * var(--axia-fs, 1));
-  height: calc(5px * var(--axia-fs, 1));
-  border-radius: 50%;
-  flex: none;
-}
-.axia_dot_hit {
-  background: #10b981;
-  box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
-}
-.axia_dot_miss {
-  background: #f59e0b;
-  box-shadow: 0 0 5px rgba(245, 158, 11, 0.5);
-}
-.axia_dot_out {
-  background: #8b5cf6;
-  box-shadow: 0 0 5px rgba(139, 92, 246, 0.5);
-}
-.axia_chiplab {
-  color: var(--dsw-alias-label-caption, rgba(255, 255, 255, 0.5));
-  font-size: calc(9px * var(--axia-fs, 1));
-  line-height: calc(13px * var(--axia-fs, 1));
-}
-.axia_chipval {
-  color: var(--dsw-alias-label-primary, rgba(255, 255, 255, 0.9));
-  font-size: calc(9.5px * var(--axia-fs, 1));
-  font-variant-numeric: tabular-nums;
-  line-height: calc(13px * var(--axia-fs, 1));
-  font-weight: 550;
-}
-/* ── 参考图版式：数值卡片网格 + Token 环形图 ───────────────────── */
-.axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(11px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(3px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(5px * var(--axia-fs,1)); }
-.axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(15px * var(--axia-fs,1)); }
-.axia_tiles { display: grid; gap: calc(4px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
-.axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: calc(8px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(6px * var(--axia-fs,1)); justify-content: space-between; padding: calc(3px * var(--axia-fs,1)) calc(7px * var(--axia-fs,1)); }
-.axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(16px * var(--axia-fs,1)); text-align: right; }
-.axia_ringbody { align-items: center; display: flex; gap: calc(9px * var(--axia-fs,1)); }
+/* ── 数值卡片网格 + Token 环形图 ───────────────────── */
+.axia_panel { background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: calc(9px * var(--axia-fs,1)); display: flex; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(4px * var(--axia-fs,1)); }
+.axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(14px * var(--axia-fs,1)); }
+.axia_tiles { display: grid; gap: calc(3px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
+.axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border-radius: calc(7px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(5px * var(--axia-fs,1)); justify-content: space-between; padding: calc(2px * var(--axia-fs,1)) calc(6px * var(--axia-fs,1)); }
+.axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(14px * var(--axia-fs,1)); text-align: right; }
+.axia_ringbody { align-items: center; display: flex; gap: calc(8px * var(--axia-fs,1)); }
 .axia_ringwrap { flex: none; position: relative; width: calc(58px * var(--axia-fs,1)); }
 .axia_ring { display: block; height: auto; width: 100%; }
-.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(13px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; left: 0; line-height: calc(16px * var(--axia-fs,1)); position: absolute; right: 0; text-align: center; top: calc(37px * var(--axia-fs,1)); }
-.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); left: 0; line-height: calc(11px * var(--axia-fs,1)); position: absolute; right: 0; text-align: center; top: calc(53px * var(--axia-fs,1)); }
-.axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(3px * var(--axia-fs,1)); min-width: 0; }
-.axia_legenditem { display: flex; flex-direction: column; gap: calc(1px * var(--axia-fs,1)); }
-.axia_legendrow { align-items: center; display: flex; gap: calc(6px * var(--axia-fs,1)); }
-.axia_legenddot { border-radius: 2px; flex: none; height: calc(8px * var(--axia-fs,1)); width: calc(8px * var(--axia-fs,1)); }
-.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(13px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 环心覆盖层：inset:0 + flex 居中——环径怎么变，环心文字都在正中间（旧版 top:37px/53px 是按 96px 环写死的） */
+.axia_ringcenter {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+}
+.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(12.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(15px * var(--axia-fs,1)); }
+.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); }
+.axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); min-width: 0; }
+.axia_legenditem { display: flex; flex-direction: column; min-width: 0; }
+.axia_legendrow { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); }
+.axia_legenddot { align-self: center; border-radius: 2px; flex: none; height: calc(7px * var(--axia-fs,1)); width: calc(7px * var(--axia-fs,1)); }
+.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; }
-.axia_legendsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(14px * var(--axia-fs,1)); }
+/* token 数并到同一行（原来单独占一行，白吃 3×11px 行高）：等宽数字、右对齐，不与百分比抢视线 */
+.axia_legendtokens { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
 
 /* 底部模型微胶囊 */
-.axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border: 1px solid color-mix(in srgb, currentColor 7%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary, rgba(255,255,255,0.7)); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(6px * var(--axia-fs,1)); line-height: calc(13px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(9px * var(--axia-fs,1)); }
+.axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
 .axia_pill_model {
   font-weight: 500;
 }
@@ -232,7 +249,7 @@ const CSS = `
   color: #60a5fa;
 }
 .axia_pill_unit {
-  color: var(--dsw-alias-label-caption, rgba(255, 255, 255, 0.45));
+  color: var(--dsw-alias-label-caption);
 }
 
 /* 手机矮视口适配 */
@@ -593,6 +610,77 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   put(second)
 }
 
+/* ── 汇率：把「元」与「美元」统一成条目计费币种 ─────────────────────────
+   来源必须可核实：open.er-api.com（返回 rates.CNY 与 time_last_update_utc）。
+   成功 → 内存 + localStorage 缓存（TTL 6 小时）；拉取失败 → 用上次成功的；两者都无 → 不换算（退化为并列展示，
+   绝不瞎算）。方向由 view.currency（当前条目的计费币种）决定，不写死。 */
+const FX_KEY = 'axia-fx-usd-cny'
+const FX_TTL_MS = 6 * 3600 * 1000
+interface FxState {
+  rate: number
+  updatedAt: string
+  stale: boolean
+  source: string
+}
+let fxState: FxState | null = null
+let fxLoading = false
+
+function readFxCache(): FxState | null {
+  try {
+    const raw = window.localStorage.getItem(FX_KEY)
+    if (raw === null) return null
+    const parsed = JSON.parse(raw) as Partial<FxState>
+    const rate = Number(parsed?.rate)
+    if (!Number.isFinite(rate) || rate <= 0) return null
+    return {
+      rate,
+      updatedAt: String(parsed?.updatedAt ?? ''),
+      stale: true,
+      source: String(parsed?.source ?? '本地缓存'),
+    }
+  } catch {
+    return null
+  }
+}
+
+/** 幂等：只在没汇率时拉一次（含进行中的去重），拿到后刷新已打开的弹层。 */
+function ensureFx(): void {
+  if (fxState !== null || fxLoading) return
+  const cached = readFxCache()
+  if (cached !== null && Number.isFinite(Date.parse(cached.updatedAt)) && Date.now() - Date.parse(cached.updatedAt) < FX_TTL_MS) {
+    fxState = cached
+    return
+  }
+  fxLoading = true
+  fetch('https://open.er-api.com/v6/latest/USD')
+    .then((res) => res.json())
+    .then((body: any) => {
+      const rate = Number(body?.rates?.CNY)
+      if (!Number.isFinite(rate) || rate <= 0) throw new Error('bad rate')
+      fxState = {
+        rate,
+        updatedAt: String(body?.time_last_update_utc ?? new Date().toUTCString()),
+        stale: false,
+        source: String(body?.provider ?? 'open.er-api.com'),
+      }
+      try {
+        window.localStorage.setItem(
+          FX_KEY,
+          JSON.stringify({ rate: fxState.rate, updatedAt: fxState.updatedAt, source: fxState.source }),
+        )
+      } catch {
+        /* 隐私模式 / 禁用存储：只用内存值 */
+      }
+      refreshOpenPanels()
+    })
+    .catch(() => {
+      fxState = cached
+    })
+    .finally(() => {
+      fxLoading = false
+    })
+}
+
 /** 用最新投影刷新账单区块内容，区块骨架已在贴装时建好。 */
 function renderBill(bill: HTMLElement): void {
   const doc = bill.ownerDocument
@@ -634,8 +722,23 @@ function renderBill(bill: HTMLElement): void {
   // 账表节标题：微发光货币图标 + 现代排版
   put(secHead(doc, '#f59e0b', '当前会话统计'))
 
-  /** 金额单元格文本：货币符号与数字分离排版，带来彭博/苹果级金融视觉质感。 */
+  /** 金额 → 统一到条目计费币种后的 HTML（符号与数字分离）。
+   *  汇率可用时只出现一种币种；拿不到汇率时退化为「元 + 美元」并列，并在 title 里说明原因。 */
+  const fxNote = (): string => {
+    const fx = fxState
+    if (fx === null || !(fx.rate > 0)) return '未取到汇率，暂按币种分别列出'
+    return `按 1 USD = ${fx.rate} CNY 折算（来源 ${fx.source}${fx.stale ? ' · 本地缓存' : ''}，更新于 ${fx.updatedAt}）`
+  }
   const money2 = (cny: number, usd: number): string => {
+    ensureFx()
+    const fx = fxState
+    if (fx !== null && fx.rate > 0) {
+      const unifyToUsd = view.currency === 'USD'
+      const total = unifyToUsd ? usd + cny / fx.rate : cny + usd * fx.rate
+      const symbol = unifyToUsd ? '$' : '¥'
+      const note = fxNote()
+      return `<span class="axia_sym" title="${note}">${symbol}</span><span class="axia_num" title="${note}">${formatAmount(total)}</span>`
+    }
     const parts: string[] = []
     if (cny > 0 || usd <= 0) {
       parts.push(`<span class="axia_sym">¥</span><span class="axia_num">${formatAmount(cny)}</span>`)
@@ -646,6 +749,13 @@ function renderBill(bill: HTMLElement): void {
     return parts.join('<span class="axia_plus"> + </span>')
   }
   const moneyChip = (cny: number, usd: number): string => {
+    ensureFx()
+    const fx = fxState
+    if (fx !== null && fx.rate > 0) {
+      const unifyToUsd = view.currency === 'USD'
+      const total = unifyToUsd ? usd + cny / fx.rate : cny + usd * fx.rate
+      return `${unifyToUsd ? '$' : '¥'}${formatAmount(total)}`
+    }
     const parts: string[] = []
     if (cny > 0 || usd <= 0) parts.push(`¥${formatAmount(cny)}`)
     if (usd > 0) parts.push(`$${formatAmount(usd)}`)
@@ -733,14 +843,7 @@ function renderBill(bill: HTMLElement): void {
     moneyChip(sessionMiss, sessionMissUsd),
     moneyChip(sessionOut, sessionOutUsd),
     true,
-  )
-
-  if (view.mixedCurrency === true) {
-    const mixed = doc.createElement('div')
-    mixed.className = 'axia_foot'
-    mixed.textContent = '本会话含两种币种，已按币种分开合计（元在前、美元在后）'
-    put(mixed)
-  }
+  )
 
   renderStats(doc, put, view)
   renderDetails(doc, put, view)
