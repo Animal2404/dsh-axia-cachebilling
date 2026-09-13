@@ -398,7 +398,7 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
 
   const modelLine = doc.createElement('div')
   modelLine.className = 'axia_modelpill'
-  const unit = view.mixedCurrency === true ? '元 + 美元' : view.currency === 'USD' ? '美元' : '元'
+  const unit = view.currency === 'USD' ? '美元' : '元'
   const tierClass = tier.includes('谷') ? 'is-valley' : tier.includes('峰') ? 'is-peak' : 'is-flat'
   modelLine.innerHTML = `
     <span class="axia_pill_model">${provider}/${view.model ?? ''}</span>
