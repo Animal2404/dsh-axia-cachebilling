@@ -77,6 +77,14 @@ export function serializeCatalogWhen(when: CatalogWhen[]): string {
 }
 
 /** 命中规则：供应商别名命中优先；同一模型只按名字命中且目录里唯一时才用（避免给错价）。 */
+/** 规范化模型 ID：小写 → 去掉 vendor/ 前缀 → 点与连字符一视同仁 → 只留字母数字。
+ *  这样 DSH 报上来的  能与目录里的  归一到同一个 key。 */
+function canonModelId(input: string): string {
+  const s = input.trim().toLowerCase()
+  const tail = s.includes('/') ? s.slice(s.lastIndexOf('/') + 1) : s
+  return tail.replace(/[^a-z0-9]/g, '')
+}
+
 export function lookupCatalog(
   catalog: PriceCatalog | null,
   provider: string,
@@ -86,6 +94,7 @@ export function lookupCatalog(
   const p = provider.trim().toLowerCase()
   const m = model.trim().toLowerCase()
   if (m === '') return null
+  const canonM = canonModelId(m)
   const exact: CatalogMatch[] = []
   const loose: CatalogMatch[] = []
   for (const entry of catalog.entries) {
@@ -94,11 +103,13 @@ export function lookupCatalog(
     // 反向（目录名以用户输入开头）会让打字过程中途就命中，不要。
     const nameHit = names.includes(m)
     const looseHit = names.some((n) => m.startsWith(n))
-    if (!nameHit && !looseHit) continue
+    // 规范化命中：容忍 vendor/ 前缀与 . / - 写法差异（点 vs 连字符）
+    const canonHit = canonM !== '' && names.some((n) => canonModelId(n) === canonM)
+    if (!nameHit && !looseHit && !canonHit) continue
     const providerMatched = (entry.providers ?? []).map((s) => s.toLowerCase()).includes(p)
     const match: CatalogMatch = { entry, providerMatched }
-    if (providerMatched && nameHit) return match
-    ;(nameHit ? exact : loose).push(match)
+    if (providerMatched && (nameHit || canonHit)) return match
+    ;(nameHit || canonHit ? exact : loose).push(match)
   }
   const pool = exact.length > 0 ? exact : loose
   if (pool.length === 0) return null
