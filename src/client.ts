@@ -450,13 +450,7 @@ function renderDetails(doc: Document, put: (el: HTMLElement) => void, view: Cach
 }
 
 /** token 数紧凑写法：845.3M / 3.7M / 1.5k */
-function compactTokens(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0'
-  if (value >= 1e9) return `${(value / 1e9).toFixed(1)}B`
-  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`
-  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}k`
-  return String(Math.round(value))
-}
+
 
 /**
  *
@@ -525,7 +519,6 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
 }
 
 /**
- * 两块面板：①「上下文统计」2×4 数值卡片网格（真实事件计数）；②「Token 统计」环形图 + 图例 + 环心命中率。
  *
  * 不加进场动画是刻意的：账单每来一个 usage 事件就重绘一次，动效会变成持续闪烁（Emil 的规矩：
  * 高频更新的数字不要做入场动画）。环图只表达比例，不做插值补间，避免和重绘打架。
