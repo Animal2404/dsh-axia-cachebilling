@@ -246,9 +246,9 @@ const CSS = `
 .axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; white-space: nowrap; }
 .axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; }
 /* token 数并到同一行（原来单独占一行，白吃 3×11px 行高）：等宽数字、右对齐，不与百分比抢视线 */
-.axia_legendtokens { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
+.axia_legendtokens { color: var(--dsw-alias-label-primary); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
 /* 图例每项的 token 数（子行，缩进对齐标签列） */
-.axia_legendsub { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(13px * var(--axia-fs,1)); }
+.axia_legendsub { color: var(--dsw-alias-label-primary); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; line-height: calc(11px * var(--axia-fs,1)); padding-left: calc(13px * var(--axia-fs,1)); }
 
 /* 底部模型微胶囊 */
 .axia_modelpill { align-self: flex-start; background: color-mix(in srgb, currentColor 3.5%, transparent); border-radius: 999px; color: var(--dsw-alias-label-secondary); display: inline-flex; font-size: calc(9px * var(--axia-fs,1)); gap: calc(5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); margin-top: calc(4px * var(--axia-fs,1)); padding: calc(2px * var(--axia-fs,1)) calc(8px * var(--axia-fs,1)); }
@@ -619,6 +619,8 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   legendRow('#22c55e', '缓存输入', pctOf(readTokens), readTokens, '命中缓存、按缓存价计费的输入 token')
   legendRow('#a855f7', '未缓存输入', pctOf(missTokens), missTokens, '未命中缓存的输入 token（按未命中价计费）')
   legendRow('#3b82f6', '输出', pctOf(outputTokens), outputTokens, '模型生成的输出 token')
+  // 总 token：与上面三行同一格式；数值 = 缓存输入 + 未缓存输入 + 输出
+  legendRow('currentColor', '总 token', 100, readTokens + missTokens + outputTokens, '本会话所有 token 的合计（缓存输入 + 未缓存输入 + 输出）')
   body.appendChild(legend)
   second.appendChild(body)
   put(second)
