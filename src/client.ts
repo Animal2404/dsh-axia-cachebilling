@@ -591,7 +591,7 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
 
   const legend = doc.createElement('div')
   legend.className = 'axia_legend'
-  const legendRow = (color: string, label: string, pct: number, tokens: number, hint: string): void => {
+  const legendRow = (color: string, label: string, pct: number | null, tokens: number, hint: string): void => {
     const item = doc.createElement('div')
     item.className = 'axia_legenditem'
     const line = doc.createElement('div')
@@ -605,7 +605,7 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     lab.textContent = label
     const val = doc.createElement('span')
     val.className = 'axia_legendval'
-    val.textContent = `${pct.toFixed(1)}%`
+    val.textContent = pct === null ? '' : `${pct.toFixed(1)}%`
     line.appendChild(dot)
     line.appendChild(lab)
     line.appendChild(val)
@@ -616,11 +616,12 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     item.appendChild(sub)
     legend.appendChild(item)
   }
+  legendRow('currentColor', '总 token', null, readTokens + missTokens + outputTokens, '本会话所有 token 的合计（缓存输入 + 未缓存输入 + 输出）')
+
   legendRow('#22c55e', '缓存输入', pctOf(readTokens), readTokens, '命中缓存、按缓存价计费的输入 token')
   legendRow('#a855f7', '未缓存输入', pctOf(missTokens), missTokens, '未命中缓存的输入 token（按未命中价计费）')
   legendRow('#3b82f6', '输出', pctOf(outputTokens), outputTokens, '模型生成的输出 token')
-  // 总 token：与上面三行同一格式；数值 = 缓存输入 + 未缓存输入 + 输出
-  legendRow('currentColor', '总 token', 100, readTokens + missTokens + outputTokens, '本会话所有 token 的合计（缓存输入 + 未缓存输入 + 输出）')
+  // 总 token：放在三行之上；用户要求不显示百分比，只给合计值
   body.appendChild(legend)
   second.appendChild(body)
   put(second)
