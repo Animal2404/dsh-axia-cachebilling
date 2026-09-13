@@ -181,10 +181,13 @@ const CSS = `
 /* 芯片明细行：固定 3 列网格——三行（当前步/当前轮/本会话）结构完全一致，
    不再 flex-wrap 造成「当前步」挤成 2+1 而另两行 3 个一排。 */
 .axia_chips { display: grid; gap: calc(4px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
+.axia_chip > * { min-width: 0; }
 .axia_chip {
   align-items: center;
   display: inline-flex;
   gap: calc(4px * var(--axia-fs, 1));
+  min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
   background: color-mix(in srgb, currentColor 3%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 7%, transparent);
@@ -201,13 +204,7 @@ const CSS = `
 .axia_dot_miss { background: #f59e0b; }
 .axia_dot_out { background: #8b5cf6; }
 .axia_chiplab { color: var(--dsw-alias-label-caption); font-size: calc(9px * var(--axia-fs, 1)); line-height: calc(13px * var(--axia-fs, 1)); }
-.axia_chipval {
-  color: var(--dsw-alias-label-primary);
-  font-size: calc(9.5px * var(--axia-fs, 1));
-  font-variant-numeric: tabular-nums;
-  font-weight: 550;
-  line-height: calc(13px * var(--axia-fs, 1));
-}
+.axia_chipval { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 账单行卡片：三行只差行名与金额，盒子样式完全同款（首行不做任何特殊化） */
 .axia_card {
   background: color-mix(in srgb, currentColor 3.5%, transparent);
@@ -234,11 +231,10 @@ const CSS = `
 .axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border-radius: calc(7px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(5px * var(--axia-fs,1)); justify-content: space-between; padding: calc(2px * var(--axia-fs,1)) calc(6px * var(--axia-fs,1)); }
 .axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(14px * var(--axia-fs,1)); text-align: right; }
-/* 「预估费用」横向占两格：DOM 里放在最后 + span 2 → 8 格在 3 列网格里排成 3+3+2，行行填满不留空洞。
    只用 grid 跨列，不写死像素、不做绝对定位。 */
 .axia_tile.is-wide { grid-column: span 2; }
 .axia_ringbody { align-items: center; display: flex; gap: calc(8px * var(--axia-fs,1)); }
-.axia_ringwrap { flex: none; position: relative; width: calc(58px * var(--axia-fs,1)); }
+.axia_ringwrap { flex: none; position: relative; width: calc(76px * var(--axia-fs,1)); }
 .axia_ring { display: block; height: auto; width: 100%; }
 /* 环心覆盖层：inset:0 + flex 居中——环径怎么变，环心文字都在正中间（旧版 top:37px/53px 是按 96px 环写死的） */
 .axia_ringcenter {
@@ -253,8 +249,8 @@ const CSS = `
 /* 环心文字：环径 58px（--axia-fs=1）时环内切圆半径只有 ~18.45px，两行合起来总宽必须 ≤ 2×√(18.45²−(h/2)²)。
    按 8px 主数字（行高 9.6px，6 字符宽 ~19.3px）+ 6.5px 标签（行高 8.5px，4 字宽 ~18.1px）算：
    总高 18.1px → 允许宽 32.5px；两行都在 20px 内，稳稳落在环内、不压环带。字号同样挂 --axia-fs。 */
-.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(8px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 650; line-height: calc(9.6px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
-.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(6.5px * var(--axia-fs,1)); line-height: calc(8.5px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
+.axia_ringpct { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 700; line-height: calc(13px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
+.axia_ringsub { color: var(--dsw-alias-label-caption); font-size: calc(7.5px * var(--axia-fs,1)); line-height: calc(9px * var(--axia-fs,1)); text-align: center; white-space: nowrap; }
 .axia_legend { display: flex; flex: 1; flex-direction: column; gap: calc(2px * var(--axia-fs,1)); min-width: 0; }
 .axia_legenditem { display: flex; flex-direction: column; min-width: 0; }
 .axia_legendrow { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); }
@@ -499,7 +495,6 @@ function compactTokens(value: number): string {
 }
 
 /**
- * 「上下文统计」数值卡片网格（2×4）：轮次 / 步数 / 工具调用 / 图片 / 预估费用 / 注入 / 压缩 / 剪枝。
  *
  * 数据全部来自宿主投影的事件计数器（src/index.ts 的 countContext），是会话日志里真实事件的数量，
  * 客户端不做任何折算、不补零：宿主没上报（view.ctx 缺失，例如旧构建）时整格显示「—」，绝不用别的数字凑。
@@ -539,7 +534,6 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
     grid.appendChild(box)
   }
 
-  /** 预估费用：本会话三笔（缓存命中＋未命中输入＋输出）× 两种币种字段，缺任一字段就当拿不到。
    *  币种统一走模块级 formatUnifiedMoney（与 renderBill 同一函数、同一汇率），所以这里只会出现一种符号。 */
   const sum3 = (a: unknown, b: unknown, c: unknown): number | null => {
     const parts = [num(a), num(b), num(c)]
@@ -554,21 +548,14 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
     costText = formatUnifiedMoney(cny, usd, view.currency).text
   }
 
-  // 8 格 = 3 + 3 + 2：预估费用占最后一行的后两格（跨列），最后一格留给剪枝——正好填满，不留空洞。
   tile('轮次', count(ctx?.turns), '会话累计轮数：turn/start 事件数（一条用户消息开启一轮）')
   tile('步数', count(ctx?.steps), '会话累计步数：step/start 事件数（每次请求模型算一步）')
   tile('工具调用', count(ctx?.tools), '每次 tool/call 记一次：一次工具调用算一次，不看结果')
   tile('图片', count(ctx?.images), '用户消息里的图片数：user/message 的 content 中 type=image 的 part 数')
-  tile('剪枝', count(ctx?.prunes), '工具结果剪枝次数：compaction/prune 事件数')
+  tile('剪枝', count(ctx?.prunes), '工具结果剪枝次数：compaction/prune 事件数', 'is-wide')
 
   tile('注入', count(ctx?.injections), '注入进会话的非用户消息数：agent/inbox/spliced 里 source.kind ≠ user（插件/父代理/子代理/目标/AGENTS.md 指令）')
   tile('压缩', count(ctx?.compactions), '上下文压缩次数：compaction/start 事件数')
-  tile(
-    '预估费用',
-    costText,
-    '本会话三笔合计（缓存命中＋未命中输入＋输出），已按当前会话币种统一折算成一种币种',
-    'is-wide',
-  )
 
   panel.appendChild(grid)
   put(panel)
@@ -594,7 +581,6 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   }
 
   // 「账单统计」数值卡片面板已按用户要求删除（2026-09-13）：那是我按参考图样式硬凑的账单分解，
-  // 用户要的是真正的「上下文统计」功能（轮次/步数/工具调用/图片/预估费用/注入/压缩/剪枝），
   // 所以这里换成真实事件计数的「上下文统计」面板；它不依赖 token 用量，故在下面的 early-return 之前渲染。
   renderContextStats(doc, put, view)
 
@@ -831,7 +817,6 @@ function renderBill(bill: HTMLElement): void {
     if (fx === null || !(fx.rate > 0)) return '未取到汇率，暂按币种分别列出'
     return `按 1 USD = ${fx.rate} CNY 折算（来源 ${fx.source}${fx.stale ? ' · 本地缓存' : ''}，更新于 ${fx.updatedAt}）`
   }
-  /** 金额 → 统一到条目计费币种后的纯文本（与「上下文统计」的预估费用同一个函数、同一汇率）。 */
   const moneyPlain = (cny: number, usd: number): string => {
     ensureFx()
     return formatUnifiedMoney(cny, usd, view.currency).text
