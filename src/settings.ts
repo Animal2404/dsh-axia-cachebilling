@@ -113,6 +113,30 @@ const CSS = `
 .axia_set_btn_danger{border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary) 25%,transparent);color:var(--dsw-alias-state-error-primary)}
 .axia_set_btn_danger:hover{background:var(--dsw-alias-interactive-bg-hover-danger);border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}
 .axia_set_btn_mini{font-size:11px;padding:3px 8px}
+/* 按钮「按下」态：面板开着时按钮不回到未激活样子（靛蓝族，与主按钮同色系） */
+.axia_set_btn_on{background:rgba(99,102,241,0.14);border-color:rgba(99,102,241,0.35);color:var(--dsw-alias-label-primary)}
+.axia_set_btn_on:hover{background:rgba(99,102,241,0.2);border-color:rgba(99,102,241,0.45)}
+
+/* 「价格来源」面板：就地撑开（与行内展开编辑器同一形态——不引浮层、不引依赖，也不挡其它控件） */
+.axia_set_src_icon{align-items:center;background:rgba(99,102,241,0.18);border-radius:50%;color:#c4b5fd;display:inline-flex;flex:none;font-size:10px;font-weight:700;height:14px;justify-content:center;line-height:1;width:14px}
+.axia_set_src{background:rgba(0,0,0,0.22);border:0 solid transparent;border-radius:7px;display:flex;flex-direction:column;gap:8px;padding:10px}
+.axia_set_src_head{align-items:center;display:flex;gap:8px}
+.axia_set_src_title{color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600}
+.axia_set_src_meta{color:var(--dsw-alias-label-caption);font-size:11px;font-variant-numeric:tabular-nums;margin-left:auto}
+.axia_set_src_close{background:transparent;border:0;border-radius:6px;color:var(--dsw-alias-label-caption);cursor:pointer;font-size:12px;line-height:1;padding:3px 6px;transition:all .15s cubic-bezier(0.16,1,0.3,1)}
+.axia_set_src_close:hover{background:color-mix(in srgb,currentColor 6%,transparent);color:var(--dsw-alias-label-primary)}
+.axia_set_src_close:focus-visible{outline:2px solid rgba(99,102,241,0.5);outline-offset:1px}
+.axia_set_src_note{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.6;margin:0}
+.axia_set_src_warn{color:#f59e0b;font-size:12px;line-height:1.5;margin:0}
+.axia_set_src_list{display:flex;flex-direction:column;gap:4px}
+.axia_set_src_row{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border-radius:6px;display:flex;gap:8px;padding:6px 10px}
+.axia_set_src_name{color:var(--dsw-alias-label-primary);flex:none;font-size:12px;font-weight:550;min-width:104px}
+.axia_set_src_link{color:#c4b5fd;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;min-width:0;overflow:hidden;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}
+.axia_set_src_link:hover{color:#c4b5fd;text-decoration:underline}
+.axia_set_src_link:focus-visible{outline:2px solid rgba(99,102,241,0.5);outline-offset:1px}
+.axia_set_src_count{color:var(--dsw-alias-label-caption);flex:none;font-size:11px;font-variant-numeric:tabular-nums;margin-left:auto}
+.axia_set_src_foot{align-items:center;display:flex;flex-wrap:wrap;gap:8px}
+.axia_set_src_hint{color:var(--dsw-alias-label-caption);font-size:11px;line-height:1.5;min-width:0}
 
 /* 供应商分组 */
 .axia_set_group{display:flex;flex-direction:column;gap:6px;margin-top:4px}
@@ -587,6 +611,151 @@ async function discoverProviderModels(
   return [...new Set(ids)]
 }
 
+// ── 「价格来源」面板 ─────────────────────────────────────────────────────────
+//
+// 用户疑问「这些价是谁家的、什么时候的价」——工具栏给一个只读面板：列出插件能自动填价的官网来源。
+// 数字一律从实际价目表现算（按 entry.source 分组），不写死；价目表读不到才退回静态兜底并明确标注。
+// 只读面板：不改价格 / 计费逻辑，也不新增拉取通道——「刷新价格」复用编辑器里同一支处理函数（refreshPrices）。
+
+/** 兜底来源清单（价目表读不到时用）；数组顺序 = 面板里的显示顺序。 */
+export const PRICE_SOURCE_FALLBACK: Array<{ name: string; url: string }> = [
+  { name: 'Open Code', url: 'https://opencode.ai/docs/zh-cn/go/' },
+  { name: 'Command Code', url: 'https://commandcode.ai/docs/plans/goat' },
+  { name: 'GLM 智谱', url: 'https://docs.bigmodel.cn/cn/guide/start/pricing' },
+  { name: 'MiniMax', url: 'https://platform.minimaxi.com/docs/guides/pricing-paygo' },
+  { name: 'MiMo 小米', url: 'https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go' },
+  { name: 'Kimi 月之暗面', url: 'https://platform.kimi.com/docs/pricing/chat' },
+]
+
+export interface PriceSourceRow {
+  /** 人看的官网名（Open Code / GLM 智谱 / …） */
+  name: string
+  url: string
+  /** 该来源覆盖的价目条数；null = 没读到目录，数字未知 */
+  models: number | null
+}
+
+export interface PriceSourceSummary {
+  rows: PriceSourceRow[]
+  /** true = 数字来自实际价目表；false = 静态兜底（面板要标「未能读取价目表」） */
+  fromCatalog: boolean
+  /** 价目表条目总数；兜底时 null */
+  total: number | null
+}
+
+/** 官网地址 → 人看的名字；目录里冒出新来源时退化成主机名，不写死也不炸。 */
+function sourceDisplayName(url: string): string {
+  const known = PRICE_SOURCE_FALLBACK.find((s) => s.url === url)
+  if (known) return known.name
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+/**
+ * 按 `entry.source` 分组统计「每个官网覆盖多少模型」。
+ * 拿不到目录（null / 没有可分组条目）→ 退回静态 6 条、models=null，由面板标注「未能读取价目表」。
+ */
+export function collectPriceSources(catalog: PriceCatalog | null): PriceSourceSummary {
+  const entries = catalog && Array.isArray(catalog.entries) ? catalog.entries : []
+  const counted = new Map<string, number>()
+  for (const entry of entries) {
+    const url = typeof entry?.source === 'string' ? entry.source.trim() : ''
+    if (url === '') continue
+    counted.set(url, (counted.get(url) ?? 0) + 1)
+  }
+  if (counted.size === 0) {
+    return {
+      rows: PRICE_SOURCE_FALLBACK.map((s) => ({ name: s.name, url: s.url, models: null })),
+      fromCatalog: false,
+      total: null,
+    }
+  }
+  const rank = (url: string): number => {
+    const i = PRICE_SOURCE_FALLBACK.findIndex((s) => s.url === url)
+    return i === -1 ? PRICE_SOURCE_FALLBACK.length : i
+  }
+  const urls = [...counted.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+  return {
+    rows: urls.map((url) => ({ name: sourceDisplayName(url), url, models: counted.get(url) ?? 0 })),
+    fromCatalog: true,
+    total: entries.length,
+  }
+}
+
+/** 「价格来源」面板本体（纯函数、无 hook：离线渲染断言直接调它）。 */
+export function PriceSourcesPanel(props: {
+  catalog: PriceCatalog | null
+  loading: boolean
+  onRefresh: () => void
+  onClose: () => void
+}): any {
+  const summary = collectPriceSources(props.catalog)
+  const updatedAt = props.catalog?.updatedAt
+  const meta = summary.fromCatalog
+    ? `${summary.rows.length} 个来源 · ${summary.total ?? 0} 条价目${updatedAt ? ` · 更新于 ${updatedAt}` : ''}`
+    : '兜底清单 · 未能读取价目表'
+  return el(
+    'div',
+    { className: 'axia_set_src' },
+    el(
+      'div',
+      { className: 'axia_set_src_head' },
+      el('span', { className: 'axia_set_src_title' }, '价格来源'),
+      el('span', { className: 'axia_set_src_meta' }, meta),
+      el(
+        'button',
+        {
+          type: 'button',
+          className: 'axia_set_src_close',
+          title: '关闭（再点一次「价格来源」或按 Esc 也行）',
+          'aria-label': '关闭价格来源',
+          onClick: props.onClose,
+        },
+        '✕',
+      ),
+    ),
+    el(
+      'p',
+      { className: 'axia_set_src_note' },
+      '价格来自本插件维护的价目表（随目录更新，不是实时爬取网页）：点「刷新价格」可从云端拉取最新一份；若官网已改价而目录还没跟上，请以官网为准。',
+    ),
+    summary.fromCatalog
+      ? null
+      : el('p', { className: 'axia_set_src_warn' }, '未能读取价目表：下面列出的是内置的 6 个官方来源，模型数未知。'),
+    el('div', { className: 'axia_set_src_list' }, summary.rows.map((row) =>
+      el(
+        'div',
+        { key: row.url, className: 'axia_set_src_row' },
+        el('span', { className: 'axia_set_src_name' }, row.name),
+        el(
+          'a',
+          { className: 'axia_set_src_link', href: row.url, target: '_blank', rel: 'noopener noreferrer', title: row.url },
+          row.url,
+        ),
+        el('span', { className: 'axia_set_src_count' }, row.models === null ? '模型数未知' : `${row.models} 个模型`),
+      ),
+    )),
+    el(
+      'div',
+      { className: 'axia_set_src_foot' },
+      el('span', { className: 'axia_set_src_hint' }, '自动填价用的就是这份目录；右侧条数 = 该来源在目录里的价目条数。'),
+      el(
+        'button',
+        {
+          type: 'button',
+          className: 'axia_set_btn axia_set_btn_mini',
+          disabled: props.loading,
+          onClick: props.onRefresh,
+        },
+        props.loading ? '拉取中…' : '刷新价格',
+      ),
+    ),
+  )
+}
+
 // ── 卡片组件 ────────────────────────────────────────────────────────────────
 
 function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): any {
@@ -621,6 +790,8 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     catalog: PriceCatalog | null
     note: string | null
   }>({ status: 'idle', catalog: null, note: null })
+  /** 「价格来源」面板开关：与行内展开编辑器并排共存，互不干扰。 */
+  const [showSources, setShowSources] = React.useState(false)
   /** 用户是否亲手改过模型字段：只有新条目或手改过模型才自动套目录价，编辑旧条目时不能覆盖已存的价格 */
   const modelTouched = React.useRef(false)
   /** 上一次由目录自动写进去的版本名：换模型时能安全覆盖它，但绝不动用户手写的版本名 */
@@ -766,6 +937,36 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     }
     applyCatalogPrices(match)
   }
+
+  // 「价格来源」面板：进设置页时 prices.catalog 还是 null（只有点过刷新才有），
+  // 所以面板一打开就补拉一次——loadPriceCatalog 自带 10 分钟缓存与「上次成功结果」回退，不会比手动刷新更费。
+  React.useEffect(() => {
+    if (!showSources || prices.catalog !== null) return
+    let cancelled = false
+    setPrices((prev) => ({ ...prev, status: 'loading' }))
+    void (async () => {
+      const catalog = await loadPriceCatalog(false)
+      if (cancelled) return
+      setPrices((prev) =>
+        catalog === null
+          ? { ...prev, status: 'error', note: prev.note ?? '价格目录拉取失败：稍后再点一次「刷新价格」，或直接手填' }
+          : { ...prev, status: 'ready', catalog },
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showSources, prices.catalog])
+
+  // Esc 关面板（点按钮再点一次、点 ✕ 同样能关）；只在面板开着时挂监听，不影响其它控件。
+  React.useEffect(() => {
+    if (!showSources) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setShowSources(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showSources])
 
   // 选完模型自动套目录价：只在「新条目」或「用户亲手改过模型」时生效，编辑旧条目绝不覆盖已存价格
   React.useEffect(() => {
@@ -1238,6 +1439,18 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
         },
         '＋ 添加条目',
       ),
+      el(
+        'button',
+        {
+          type: 'button',
+          className: 'axia_set_btn' + (showSources ? ' axia_set_btn_on' : ''),
+          title: '这些价是从哪几个官网来的（插件维护的价目表，不是实时爬取）',
+          'aria-expanded': showSources,
+          onClick: () => setShowSources((v) => !v),
+        },
+        el('span', { className: 'axia_set_src_icon' }, '?'),
+        '价格来源',
+      ),
       el('span', { className: 'axia_set_spacer' }),
       el('span', { className: 'axia_set_label' }, '弹层字号'),
       el(
@@ -1265,6 +1478,14 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
       el('span', { className: 'axia_set_hint' }, '只影响上下文弹层（账单区），设置页保持标准'),
       el('span', { className: 'axia_set_count' }, `共 ${total} 条`),
     ),
+    showSources
+      ? el(PriceSourcesPanel, {
+          catalog: prices.catalog,
+          loading: prices.status === 'loading',
+          onRefresh: () => void refreshPrices(true, false),
+          onClose: () => setShowSources(false),
+        })
+      : null,
     expandedIsNew ? editor : null,
     ...groups.map((g) =>
       el(
