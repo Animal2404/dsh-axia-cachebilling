@@ -434,10 +434,17 @@ function compactTokens(value: number): string {
  * 高频更新的数字不要做入场动画）。环图只表达比例，不做插值补间，避免和重绘打架。
  */
 function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheBillingView): void {
-  const symbol = view.currency === 'USD' ? '$' : '¥'
-  const money = (value: unknown): string =>
-    `${symbol}${formatAmount(Number.isFinite(value) ? (value as number) : 0)}`
   const num = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
+  /** 金额文本：元与美元分开合计再拼（与上方金额卡同一口径）。
+   *  只读 cny 字段会让美元会话整列显示 $0 —— 这是上一版把「当前步/当前轮」显示成 0 的根因。 */
+  const money = (cny: unknown, usd: unknown): string => {
+    const yuan = num(cny)
+    const dollar = num(usd)
+    const parts: string[] = []
+    if (yuan > 0 || dollar <= 0) parts.push(`¥${formatAmount(yuan)}`)
+    if (dollar > 0) parts.push(`$${formatAmount(dollar)}`)
+    return parts.join(' + ')
+  }
 
   const panel = doc.createElement('div')
   panel.className = 'axia_panel'
@@ -462,20 +469,25 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     box.appendChild(val)
     grid.appendChild(box)
   }
-  tile('当前步', money(num(view.cost) + num(view.missCost) + num(view.outputCost)), '这一次 API 调用花了多少')
+  const sessionCny = num(view.sessionCacheHitCost) + num(view.sessionMissCost) + num(view.sessionOutputCost)
+  const sessionUsd = num(view.sessionCacheHitCostUsd) + num(view.sessionMissCostUsd) + num(view.sessionOutputCostUsd)
+  const turnCny = num(view.turnHitCost) + num(view.turnMissCost) + num(view.turnOutputCost)
+  const turnUsd = num(view.turnHitCostUsd) + num(view.turnMissCostUsd) + num(view.turnOutputCostUsd)
+  tile('轮次', String(num(view.sessionRounds)), '本会话里产生过用量的轮数')
+  tile('本会话', money(sessionCny, sessionUsd), '整个会话累计费用')
+  tile('当前轮', money(turnCny, turnUsd), '本轮所有 API 调用的合计')
   tile(
-    '当前轮',
-    money(num(view.turnHitCost) + num(view.turnMissCost) + num(view.turnOutputCost)),
-    '本轮所有调用的合计',
+    '当前步',
+    money(
+      num(view.cost) + num(view.missCost) + num(view.outputCost),
+      num(view.costUsd) + num(view.missCostUsd) + num(view.outputCostUsd),
+    ),
+    '这一次 API 调用的费用',
   )
-  tile(
-    '本会话',
-    money(num(view.sessionCacheHitCost) + num(view.sessionMissCost) + num(view.sessionOutputCost)),
-    '整个会话累计',
-  )
-  tile('缓存命中', money(view.sessionCacheHitCost), '本会话缓存命中部分的费用')
-  tile('未命中', money(view.sessionMissCost), '本会话未命中输入（含缓存写入）的费用')
-  tile('输出', money(view.sessionOutputCost), '本会话输出 token 的费用')
+  tile('缓存命中', money(view.sessionCacheHitCost, view.sessionCacheHitCostUsd), '本会话缓存命中部分的费用')
+  tile('未命中', money(view.sessionMissCost, view.sessionMissCostUsd), '本会话未命中输入（含缓存写入）的费用')
+  tile('输出', money(view.sessionOutputCost, view.sessionOutputCostUsd), '本会话输出 token 的费用')
+  tile('缓存失效', `${num(view.sessionFullMissSteps)} 次`, '有输入但缓存完全没命中的步数')
   panel.appendChild(grid)
   put(panel)
 
