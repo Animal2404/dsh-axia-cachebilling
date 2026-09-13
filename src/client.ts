@@ -473,7 +473,10 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   const sessionUsd = num(view.sessionCacheHitCostUsd) + num(view.sessionMissCostUsd) + num(view.sessionOutputCostUsd)
   const turnCny = num(view.turnHitCost) + num(view.turnMissCost) + num(view.turnOutputCost)
   const turnUsd = num(view.turnHitCostUsd) + num(view.turnMissCostUsd) + num(view.turnOutputCostUsd)
-  tile('轮次', String(num(view.sessionRounds)), '本会话里产生过用量的轮数')
+  // 轮次 = 会话里的轮序号（底部状态栏「N 轮」同一口径）；步数 = 有 usages 的调用次数（状态栏「M 步」）。
+  // 上一版把 sessionRounds 标成「轮次」是错的（它数的是步），标签不能撒谎。
+  tile('轮次', String(num(view.turn)), '本会话进行到第几轮（与底部状态栏「N 轮」一致）')
+  tile('步数', String(num(view.sessionRounds)), '本会话产生过用量的 API 调用次数（状态栏「M 步」）')
   tile('本会话', money(sessionCny, sessionUsd), '整个会话累计费用')
   tile('当前轮', money(turnCny, turnUsd), '本轮所有 API 调用的合计')
   tile(
