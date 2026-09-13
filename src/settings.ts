@@ -56,72 +56,119 @@ export function applyFontScale(value: number): void {
 const CSS = `
 /* 设置页永远标准大小：字号档位只作用于上下文弹层里的账单（见 client.ts 的 --axia-fs），
    早先给设置页也加了 zoom 是错的（用户反馈「连插件 UI 都跟着放大缩小」） */
-.axia_set_page{color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px;max-width:820px;padding:4px 0}
+.axia_set_page{color:var(--dsw-alias-label-primary,#f4f4f5);display:flex;flex-direction:column;gap:14px;max-width:840px;padding:4px 0}
 /* 自带 border-box：DSH 外壳不重置盒模型，缺了它 width:100% 的输入框会撑破网格、互相压边 */
 .axia_set_page,.axia_set_page *{box-sizing:border-box}
-.axia_set_head{display:flex;flex-direction:column;gap:4px}
-.axia_set_title{font-size:17px;font-weight:650;letter-spacing:.2px;margin:0}
-.axia_set_subtitle{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.6;margin:0}
-.axia_set_card{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:12px;display:flex;flex-direction:column;gap:10px;padding:14px}
-.axia_set_legend{align-items:center;color:var(--dsw-alias-label-caption);display:flex;flex-wrap:wrap;font-size:12px;gap:6px 10px;line-height:1.6}
-.axia_set_legend b{color:var(--dsw-alias-label-secondary);font-weight:600}
-.axia_set_toolbar{align-items:center;display:flex;flex-wrap:wrap;gap:8px}
-.axia_set_count{color:var(--dsw-alias-label-caption);font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto}
-.axia_set_btn{align-items:center;background:transparent;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-secondary);cursor:pointer;display:inline-flex;font-size:12.5px;gap:4px;padding:5px 11px;transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
-.axia_set_btn:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}
-.axia_set_btn:disabled{cursor:default;opacity:.5}
-/* 主按钮用自己的品牌蓝：--dsw-alias-button-primary-fill 在深色主题里是白色，配白字会白底白字 */
-.axia_set_btn_primary{background:#4D6BFE;border-color:transparent;color:#fff;font-weight:600}
-.axia_set_btn_primary:hover{background:#4D6BFE;color:#fff;filter:brightness(1.12)}
-.axia_set_btn_danger:hover{border-color:#f43f5e;color:#f43f5e}
-.axia_set_btn_mini{font-size:12px;padding:3px 8px}
-.axia_set_group{display:flex;flex-direction:column;gap:6px}
-.axia_set_grouphead{align-items:center;color:var(--dsw-alias-label-caption);display:flex;font-size:11.5px;gap:6px;letter-spacing:.3px;padding:2px 2px 0}
-.axia_set_row{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;cursor:pointer;display:flex;gap:10px;padding:9px 12px;transition:background .15s,border-color .15s}
-.axia_set_row:hover{background:color-mix(in srgb,currentColor 7%,transparent);border-color:var(--dsw-alias-border-l2)}
+
+.axia_set_head{display:flex;flex-direction:column;gap:6px;margin-bottom:2px}
+.axia_set_title_wrap{align-items:center;display:flex;gap:10px}
+.axia_set_title{background:linear-gradient(135deg,#fff 60%,rgba(255,255,255,0.7) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:18px;font-weight:700;letter-spacing:-0.2px;margin:0}
+.axia_set_title_pill{background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);border-radius:999px;color:#a5b4fc;font-size:11px;font-weight:500;padding:2px 9px}
+.axia_set_subtitle{color:var(--dsw-alias-label-caption,#a1a1aa);font-size:12.5px;line-height:1.6;margin:0}
+
+/* 卡片容器：Bento 玻璃卡片质感 */
+.axia_set_card{background:color-mix(in srgb,currentColor 4%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:0 solid transparent;box-shadow:0 4px 24px -2px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.04);border-radius:10px;display:flex;flex-direction:column;gap:12px;padding:16px}
+
+/* 图例条：胶囊微芯片风格 */
+.axia_set_legend{align-items:center;display:flex;flex-wrap:wrap;gap:8px;margin:0;padding-bottom:2px}
+.axia_set_legend_chip{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:0 solid transparent;border-radius:999px;color:var(--dsw-alias-label-caption,#a1a1aa);display:inline-flex;font-size:11.5px;gap:6px;padding:3px 10px}
+.axia_set_legend_chip b{color:var(--dsw-alias-label-secondary,#e4e4e7);font-weight:600}
+
+/* 语义状态微光圆点 */
+.axia_dot{border-radius:50%;display:inline-block;flex:none;height:6px;width:6px}
+.axia_dot_blue{background:#3b82f6;box-shadow:0 0 6px rgba(59,130,246,0.6)}
+.axia_dot_amber{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,0.6)}
+.axia_dot_zinc{background:#71717a}
+.axia_dot_hit{background:#10b981;box-shadow:0 0 5px rgba(16,185,129,0.5)}
+.axia_dot_miss{background:#f59e0b;box-shadow:0 0 5px rgba(245,158,11,0.5)}
+.axia_dot_out{background:#8b5cf6;box-shadow:0 0 5px rgba(139,92,246,0.5)}
+
+/* 工具栏 */
+.axia_set_toolbar{align-items:center;display:flex;flex-wrap:wrap;gap:10px}
+.axia_set_count{background:color-mix(in srgb,currentColor 4%,transparent);border:0 solid transparent;border-radius:999px;color:var(--dsw-alias-label-caption,#a1a1aa);font-size:11.5px;font-variant-numeric:tabular-nums;margin-left:auto;padding:3px 9px}
+
+/* 通用按钮 */
+.axia_set_btn{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid var(--dsw-alias-border-l3,rgba(255,255,255,0.08));border-radius:7px;color:var(--dsw-alias-label-secondary,#d4d4d8);cursor:pointer;display:inline-flex;font-size:12.5px;gap:5px;padding:5px 12px;transition:all .15s cubic-bezier(0.16,1,0.3,1);white-space:nowrap}
+.axia_set_btn:hover{background:color-mix(in srgb,currentColor 4%,transparent);border-color:var(--dsw-alias-border-l2,rgba(255,255,255,0.16));color:var(--dsw-alias-label-primary,#fff);transform:translateY(-0.5px)}
+.axia_set_btn:active{transform:scale(0.97)}
+.axia_set_btn:disabled{cursor:default;opacity:.45;pointer-events:none}
+
+/* 主按钮：Linear 风格渐变紫色/靛蓝 + 柔和投影 */
+.axia_set_btn_primary{background:linear-gradient(135deg,#4f46e5 0%,#6366f1 100%);border-color:transparent;box-shadow:0 2px 8px rgba(99,102,241,0.28),inset 0 1px 0 rgba(255,255,255,0.2);color:var(--dsw-alias-label-primary);font-weight:600}
+.axia_set_btn_primary:hover{box-shadow:0 4px 14px rgba(99,102,241,0.4),inset 0 1px 0 rgba(255,255,255,0.25);filter:brightness(1.08);transform:translateY(-1px)}
+.axia_set_btn_primary:active{transform:scale(0.97)}
+.axia_set_btn_danger{border-color:rgba(244,63,94,0.25);color:rgba(244,63,94,0.9)}
+.axia_set_btn_danger:hover{background:rgba(244,63,94,0.12);border-color:#f43f5e;color:#f43f5e}
+.axia_set_btn_mini{font-size:11.5px;padding:3px 8px}
+
+/* 供应商分组 */
+.axia_set_group{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.axia_set_grouphead{align-items:center;display:flex;gap:10px;padding:6px 2px 2px}
+.axia_set_grouptag{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:0 solid transparent;border-radius:6px;color:var(--dsw-alias-label-secondary,#e4e4e7);display:inline-flex;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;font-weight:600;letter-spacing:0.3px;padding:2px 8px}
+.axia_set_groupline{background:linear-gradient(90deg,rgba(255,255,255,0.08),transparent);flex:1;height:1px}
+.axia_set_groupcount{color:var(--dsw-alias-label-caption,#71717a);font-size:11px;font-variant-numeric:tabular-nums}
+
+/* 模型列表行（Bento 卡片交互） */
+.axia_set_row{align-items:center;background:color-mix(in srgb,currentColor 4%,transparent);border:0 solid transparent;border-radius:10px;cursor:pointer;display:flex;gap:10px;padding:9px 13px;transition:all .2s cubic-bezier(0.16,1,0.3,1)}
+.axia_set_row:hover{background:color-mix(in srgb,currentColor 4%,transparent);border-color:rgba(99,102,241,0.3);box-shadow:0 4px 16px -2px rgba(0,0,0,0.25),0 0 12px -2px rgba(99,102,241,0.08);transform:translateY(-1.5px)}
+.axia_set_row:active{transform:scale(0.99)}
 .axia_set_rowmain{display:flex;flex-direction:column;gap:2px;min-width:0}
-.axia_set_model{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.axia_set_ver{color:var(--dsw-alias-label-caption);font-size:11.5px}
+.axia_set_model{color:var(--dsw-alias-label-primary,#f4f4f5);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;font-weight:550;letter-spacing:-0.1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.axia_set_ver{color:var(--dsw-alias-label-caption,#a1a1aa);font-size:11.5px}
 .axia_set_spacer{flex:1}
-.axia_set_chev{color:var(--dsw-alias-label-caption);flex:none;font-size:15px;line-height:1}
-.axia_set_badge{border-radius:999px;font-size:11px;line-height:17px;padding:0 8px;white-space:nowrap}
-.axia_set_badge_prefill{background:color-mix(in srgb,#4D6BFE 18%,transparent);color:#8AA0FF}
-.axia_set_badge_override{background:color-mix(in srgb,#f59e0b 18%,transparent);color:#F0A63A}
-.axia_set_badge_custom{background:color-mix(in srgb,#34d399 18%,transparent);color:#34d399}
-.axia_set_badge_tier{background:color-mix(in srgb,currentColor 9%,transparent);color:var(--dsw-alias-label-secondary)}
-.axia_set_editor{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;display:flex;flex-direction:column;gap:10px;padding:12px}
+.axia_set_chev{color:var(--dsw-alias-label-caption,#71717a);flex:none;font-size:16px;line-height:1;transition:transform .18s ease,color .18s ease}
+.axia_set_row:hover .axia_set_chev{color:var(--dsw-alias-label-primary,#fff);transform:translateX(2px)}
+
+/* 标签徽章 */
+.axia_set_badge{border-radius:999px;font-size:11px;font-weight:500;line-height:18px;padding:0 8px;white-space:nowrap}
+.axia_set_badge_prefill{background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.24);color:#93c5fd}
+.axia_set_badge_override{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.24);color:#fbbf24}
+.axia_set_badge_custom{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.24);color:#6ee7b7}
+.axia_set_badge_tier{background:color-mix(in srgb,currentColor 4%,transparent);border:0 solid transparent;color:var(--dsw-alias-label-secondary,#a1a1aa)}
+
+/* 编辑器容器 */
+.axia_set_editor{animation:axia_editor_in .22s cubic-bezier(0.16,1,0.3,1);background:color-mix(in srgb,currentColor 4%,transparent);border:1px solid rgba(99,102,241,0.3);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35),0 0 24px rgba(99,102,241,0.08);display:flex;flex-direction:column;gap:12px;padding:16px}
+@keyframes axia_editor_in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .axia_set_grid{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
 .axia_set_field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.axia_set_fieldrow{align-items:center;display:flex;gap:6px;min-width:0}
-.axia_set_label{color:var(--dsw-alias-label-caption);flex:none;font-size:11.5px}
-.axia_set_input{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;min-width:0;padding:5px 9px;transition:border-color .15s}
-.axia_set_input:focus{border-color:var(--dsw-alias-border-l2);outline:none}
-.axia_set_input::placeholder{color:var(--dsw-alias-label-caption);opacity:.7}
+.axia_set_fieldrow{align-items:center;display:flex;gap:8px;min-width:0}
+.axia_set_label{color:var(--dsw-alias-label-caption,#a1a1aa);flex:none;font-size:11.5px;font-weight:500}
+.axia_set_label_with_dot{align-items:center;display:inline-flex;gap:5px}
+
+/* 输入框与选择框 */
+.axia_set_input{background:rgba(0,0,0,0.3);border:0 solid transparent;border-radius:7px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;min-width:0;padding:6px 10px;transition:border-color .15s,box-shadow .15s}
+.axia_set_input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.22);outline:none}
+.axia_set_input::placeholder{color:var(--dsw-alias-label-caption,#71717a);opacity:.65}
 .axia_set_input_grow{flex:1;min-width:0}
-/* 用 DSH 自己的字体（用户要求别改字体），只给数字加等宽数字特性 */
 .axia_set_input_mono{font-variant-numeric:tabular-nums}
-.axia_set_input_err{border-color:#f43f5e}
-.axia_set_select{background:var(--dsw-alias-bg-layer-2,#26262b);border:1px solid var(--dsw-alias-border-l3);border-radius:8px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;max-width:100%;min-width:0;padding:5px 8px}
-.axia_set_select option{background:var(--dsw-alias-bg-layer-2,#26262b);color:var(--dsw-alias-label-primary,#eee)}
-.axia_set_select:disabled{opacity:.6}
+.axia_set_input_err{border-color:#f43f5e;box-shadow:0 0 0 2px rgba(244,63,94,0.2)}
+.axia_set_select{background:rgba(0,0,0,0.3);border:0 solid transparent;border-radius:7px;color:var(--dsw-alias-label-primary,#eee);font-size:13px;max-width:100%;min-width:0;padding:6px 9px;transition:border-color .15s,box-shadow .15s}
+.axia_set_select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.22);outline:none}
+.axia_set_select option{background:#18181b;color:var(--dsw-alias-label-primary)}
+.axia_set_select:disabled{opacity:.5}
 body[data-ds-dark-theme] .axia_set_input{color-scheme:dark}
 body[data-ds-dark-theme] .axia_set_select{color-scheme:dark}
-.axia_set_prices{background:color-mix(in srgb,currentColor 3%,transparent);border:1px solid var(--dsw-alias-border-l3);border-radius:10px;display:flex;flex-direction:column;gap:8px;padding:10px}
+
+/* 价格区域 */
+.axia_set_prices{background:rgba(0,0,0,0.22);border:0 solid transparent;border-radius:10px;display:flex;flex-direction:column;gap:9px;padding:12px}
 .axia_set_prices_head{align-items:center;display:flex;gap:6px}
-.axia_set_prices_title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}
-.axia_set_unit{color:var(--dsw-alias-label-caption);font-size:11px;margin-left:auto}
+.axia_set_prices_title{color:var(--dsw-alias-label-primary,#f4f4f5);font-size:12px;font-weight:600}
+.axia_set_unit{color:var(--dsw-alias-label-caption,#a1a1aa);font-size:11px;margin-left:auto}
 .axia_set_pricerow{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
 .axia_set_pricecell{display:flex;flex-direction:column;gap:3px;min-width:0}
 .axia_set_pricenum{font-variant-numeric:tabular-nums;width:100%}
-.axia_set_seg{background:color-mix(in srgb,currentColor 6%,transparent);border-radius:8px;display:inline-flex;gap:2px;padding:2px}
-.axia_set_segbtn{background:transparent;border:0;border-radius:6px;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:12.5px;padding:4px 12px;transition:background .15s,color .15s}
-.axia_set_segbtn:hover{color:var(--dsw-alias-label-primary)}
-.axia_set_segbtn_on{background:var(--dsw-alias-bg-layer-2,#2c2c2e);color:var(--dsw-alias-label-primary);font-weight:600}
-.axia_set_note{color:var(--dsw-alias-label-caption);font-size:12px;line-height:1.5;margin:0}
+
+/* 分段选择器（Apple 胶囊质感） */
+.axia_set_seg{background:rgba(0,0,0,0.25);border:0 solid transparent;border-radius:999px;display:inline-flex;gap:2px;padding:2px}
+.axia_set_segbtn{background:transparent;border:0;border-radius:999px;color:var(--dsw-alias-label-secondary,#a1a1aa);cursor:pointer;font-size:12px;font-weight:500;padding:4px 12px;transition:all .18s cubic-bezier(0.16,1,0.3,1)}
+.axia_set_segbtn:hover{color:var(--dsw-alias-label-primary,#fff)}
+.axia_set_segbtn_on{background:color-mix(in srgb,currentColor 4%,transparent);box-shadow:0 1px 4px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.1);color:var(--dsw-alias-label-primary);font-weight:600}
+
+.axia_set_note{color:var(--dsw-alias-label-caption,#a1a1aa);font-size:12px;line-height:1.5;margin:0}
 .axia_set_err{color:#f43f5e;font-size:12px;line-height:1.5;margin:0;white-space:pre-wrap}
-.axia_set_muted{color:var(--dsw-alias-label-caption);font-size:12px}
+.axia_set_muted{color:var(--dsw-alias-label-caption,#a1a1aa);font-size:12px}
 .axia_set_actions{align-items:center;display:flex;gap:8px}
-.axia_set_hint{color:var(--dsw-alias-label-caption);font-size:11.5px;margin-left:auto}
+.axia_set_hint{color:var(--dsw-alias-label-caption,#71717a);font-size:11.5px;margin-left:auto}
 @media (max-width:560px){
   .axia_set_card{padding:12px}
   .axia_set_grid{grid-template-columns:minmax(0,1fr)}
@@ -340,32 +387,37 @@ const field = (labelText: string, child: any): any =>
 /** 三格价格输入（缓存命中 / 缓存未命中 / 输出）；标题与单位由外层的 .axia_set_prices 卡片给。 */
 function PriceInputs(props: { d: Draft; set: (patch: Partial<Draft>) => void; mode: 'flat' | 'peak' | 'valley' }): any {
   const { d, set, mode } = props
-  const cells: Array<[string, keyof Draft]> =
+  const cells: Array<[string, keyof Draft, string]> =
     mode === 'flat'
       ? [
-          ['缓存命中', 'flatHit'],
-          ['缓存未命中', 'flatMiss'],
-          ['输出', 'flatOutput'],
+          ['缓存命中', 'flatHit', 'axia_dot_hit'],
+          ['缓存未命中', 'flatMiss', 'axia_dot_miss'],
+          ['输出', 'flatOutput', 'axia_dot_out'],
         ]
       : mode === 'peak'
         ? [
-            ['缓存命中', 'peakHit'],
-            ['缓存未命中', 'peakMiss'],
-            ['输出', 'peakOutput'],
+            ['峰·缓存命中', 'peakHit', 'axia_dot_hit'],
+            ['峰·缓存未命中', 'peakMiss', 'axia_dot_miss'],
+            ['峰·输出', 'peakOutput', 'axia_dot_out'],
           ]
         : [
-            ['缓存命中', 'valleyHit'],
-            ['缓存未命中', 'valleyMiss'],
-            ['输出', 'valleyOutput'],
+            ['谷·缓存命中', 'valleyHit', 'axia_dot_hit'],
+            ['谷·缓存未命中', 'valleyMiss', 'axia_dot_miss'],
+            ['谷·输出', 'valleyOutput', 'axia_dot_out'],
           ]
   return el(
     'div',
     { className: 'axia_set_pricerow' },
-    cells.map(([text, key]) =>
+    cells.map(([text, key, dotClass]) =>
       el(
         'div',
         { key: String(key), className: 'axia_set_pricecell' },
-        el('span', { className: 'axia_set_label' }, text),
+        el(
+          'span',
+          { className: 'axia_set_label axia_set_label_with_dot' },
+          el('i', { className: 'axia_dot ' + dotClass }),
+          text,
+        ),
         el('input', {
           className: 'axia_set_input axia_set_pricenum',
           value: d[key] as string,
@@ -1132,11 +1184,29 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
     'div',
     { className: 'axia_set_card' },
     el(
-      'p',
+      'div',
       { className: 'axia_set_legend' },
-      el('span', null, el('b', null, '预填'), ' 插件自带，跟随版本更新'),
-      el('span', null, el('b', null, '你的修改'), ' 存在 DSH 设置里，改完即时生效'),
-      el('span', null, el('b', null, '点任意一行'), ' 展开编辑'),
+      el(
+        'span',
+        { className: 'axia_set_legend_chip' },
+        el('i', { className: 'axia_dot axia_dot_blue' }),
+        el('b', null, '预填'),
+        ' 插件自带，跟随版本更新',
+      ),
+      el(
+        'span',
+        { className: 'axia_set_legend_chip' },
+        el('i', { className: 'axia_dot axia_dot_amber' }),
+        el('b', null, '已覆盖 / 自定义'),
+        ' 改完即时生效',
+      ),
+      el(
+        'span',
+        { className: 'axia_set_legend_chip' },
+        el('i', { className: 'axia_dot axia_dot_zinc' }),
+        el('b', null, '点任意一行'),
+        ' 展开编辑',
+      ),
     ),
     !snap.writable
       ? el('span', { className: 'axia_set_muted' }, '当前连接为只读（设置写入仅限本机回环连接）。')
@@ -1186,7 +1256,13 @@ function BillingCard(props: { scope: any; remote?: any; settingsScope?: any }): 
       el(
         'div',
         { key: g.name, className: 'axia_set_group' },
-        el('div', { className: 'axia_set_grouphead' }, el('span', null, g.name), el('span', null, `· ${g.rows.length}`)),
+        el(
+          'div',
+          { className: 'axia_set_grouphead' },
+          el('span', { className: 'axia_set_grouptag' }, g.name),
+          el('div', { className: 'axia_set_groupline' }),
+          el('span', { className: 'axia_set_groupcount' }, `${g.rows.length} 款模型`),
+        ),
         ...g.rows,
       ),
     ),
@@ -1238,11 +1314,16 @@ function BillingSection(props: { scope: any; remote?: any; settingsScope?: any }
     el(
       'div',
       { className: 'axia_set_head' },
-      el('h2', { className: 'axia_set_title' }, '虾算账'),
+      el(
+        'div',
+        { className: 'axia_set_title_wrap' },
+        el('h2', { className: 'axia_set_title' }, '虾算账'),
+        el('span', { className: 'axia_set_title_pill' }, 'Token 计费 & 缓存监控'),
+      ),
       el(
         'p',
         { className: 'axia_set_subtitle' },
-        '上下文缓存到底花了多少钱。供应商和模型直接从 DSH 已配置的列表里挑，模型可一键拉取清单；改完即时生效，无需重启。',
+        '上下文缓存到底花了多少钱。供应商和模型直接从 DSH 已配置的列表里挑选，模型可一键拉取清单；配置修改即时生效，无需重启。',
       ),
     ),
     el(BillingCard, { scope: props.scope, remote: props.remote, settingsScope: props.settingsScope }),
