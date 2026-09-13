@@ -204,7 +204,7 @@ const CSS = `
 .axia_dot_miss { background: #f59e0b; }
 .axia_dot_out { background: #8b5cf6; }
 .axia_chiplab { color: var(--dsw-alias-label-caption); font-size: calc(9px * var(--axia-fs, 1)); line-height: calc(13px * var(--axia-fs, 1)); }
-.axia_chipval { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axia_chipval { flex: none; font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* 账单行卡片：三行只差行名与金额，盒子样式完全同款（首行不做任何特殊化） */
 .axia_card {
   background: color-mix(in srgb, currentColor 3.5%, transparent);
@@ -229,7 +229,7 @@ const CSS = `
 .axia_panelhead { color: var(--dsw-alias-label-primary); font-size: calc(11px * var(--axia-fs,1)); font-weight: 650; line-height: calc(14px * var(--axia-fs,1)); }
 .axia_tiles { display: grid; gap: calc(3px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
 .axia_tile { background: color-mix(in srgb, currentColor 4%, transparent); border-radius: calc(7px * var(--axia-fs,1)); align-items: baseline; display: flex; flex-direction: row; gap: calc(5px * var(--axia-fs,1)); justify-content: space-between; padding: calc(2px * var(--axia-fs,1)) calc(6px * var(--axia-fs,1)); }
-.axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axia_tilelab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9px * var(--axia-fs,1)); line-height: calc(11px * var(--axia-fs,1)); min-width: 0; white-space: nowrap; }
 .axia_tileval { color: var(--dsw-alias-label-primary); flex: none; font-size: calc(12px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; line-height: calc(14px * var(--axia-fs,1)); text-align: right; }
    只用 grid 跨列，不写死像素、不做绝对定位。 */
 .axia_tile.is-wide { grid-column: span 2; }
@@ -255,7 +255,7 @@ const CSS = `
 .axia_legenditem { display: flex; flex-direction: column; min-width: 0; }
 .axia_legendrow { align-items: baseline; display: flex; gap: calc(6px * var(--axia-fs,1)); }
 .axia_legenddot { align-self: center; border-radius: 2px; flex: none; height: calc(7px * var(--axia-fs,1)); width: calc(7px * var(--axia-fs,1)); }
-.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axia_legendlab { color: var(--dsw-alias-label-secondary); flex: 1; font-size: calc(9.5px * var(--axia-fs,1)); line-height: calc(12px * var(--axia-fs,1)); min-width: 0; white-space: nowrap; }
 .axia_legendval { color: var(--dsw-alias-label-primary); font-size: calc(10px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; font-weight: 600; }
 /* token 数并到同一行（原来单独占一行，白吃 3×11px 行高）：等宽数字、右对齐，不与百分比抢视线 */
 .axia_legendtokens { color: var(--dsw-alias-label-caption); font-size: calc(8.5px * var(--axia-fs,1)); font-variant-numeric: tabular-nums; text-align: right; }
@@ -314,16 +314,8 @@ function isBillableProvider(provider: unknown): boolean {
 /** 金额格式化，无货币符号：小于 0.01 四舍五入保留一位有效数字（0.0047→0.005，0.0003 依稀可辨），大于等于 0.01 四舍五入到分，0 恒显示 0。 */
 function formatAmount(amount: number): string {
   if (!Number.isFinite(amount) || amount <= 0) return '0'
-  if (amount >= 0.01) return amount.toFixed(2)
-  // 一位有效数字：数量级 exp + 首位 sig，四舍五入进位到 10 时升一级数量级（0.0096 → 0.01）
-  let exp = Math.floor(Math.log10(amount))
-  let sig = Math.round(amount / Math.pow(10, exp))
-  if (sig >= 10) {
-    exp += 1
-    sig = 1
-  }
-  const value = sig * Math.pow(10, exp)
-  return value >= 0.01 ? value.toFixed(2) : value.toFixed(-exp)
+  // 完整数值：最多 10 位小数后去掉尾随零，绝不缩写、不做有效数字截断（用户要求：不丢位数）
+  return Number(amount.toFixed(10)).toString()
 }
 
 /**
@@ -583,106 +575,7 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   // 所以这里换成真实事件计数的「上下文统计」面板；它不依赖 token 用量，故在下面的 early-return 之前渲染。
   renderContextStats(doc, put, view)
 
-  const inputTokens = num(view.sessionInputTokens)
-  const readTokens = Math.min(num(view.sessionCacheReadTokens), inputTokens)
-  const outputTokens = num(view.sessionOutputTokens)
-  const missTokens = Math.max(0, inputTokens - readTokens)
-  const totalTokens = inputTokens + outputTokens
-  if (totalTokens <= 0) return
-
-  const pctOf = (value: number): number => (totalTokens > 0 ? (value / totalTokens) * 100 : 0)
-  const hitPct = inputTokens > 0 ? (readTokens / inputTokens) * 100 : 0
-  const slices = [
-    { pct: pctOf(readTokens), color: '#22c55e' },
-    { pct: pctOf(missTokens), color: '#a855f7' },
-    { pct: pctOf(outputTokens), color: '#3b82f6' },
-  ]
-
-  const second = doc.createElement('div')
-  second.className = 'axia_panel'
-  const head2 = doc.createElement('div')
-  head2.className = 'axia_panelhead'
-  head2.textContent = 'Token 统计'
-  second.appendChild(head2)
-  const body = doc.createElement('div')
-  body.className = 'axia_ringbody'
-
-  const SVG_NS = 'http://www.w3.org/2000/svg'
-  const size = 96
-  const radius = 36
-  const stroke = 11
-  const circumference = 2 * Math.PI * radius
-  const svg = doc.createElementNS(SVG_NS, 'svg')
-  svg.setAttribute('viewBox', `0 0 ${size} ${size}`)
-  svg.setAttribute('class', 'axia_ring')
-  let consumed = 0
-  for (const slice of slices) {
-    if (slice.pct <= 0) continue
-    const arc = doc.createElementNS(SVG_NS, 'circle')
-    arc.setAttribute('cx', String(size / 2))
-    arc.setAttribute('cy', String(size / 2))
-    arc.setAttribute('r', String(radius))
-    arc.setAttribute('fill', 'none')
-    arc.setAttribute('stroke', slice.color)
-    arc.setAttribute('stroke-width', String(stroke))
-    arc.setAttribute('stroke-dasharray', `${(circumference * slice.pct) / 100} ${circumference}`)
-    arc.setAttribute('stroke-dashoffset', String(-consumed))
-    arc.setAttribute('transform', `rotate(-90 ${size / 2} ${size / 2})`)
-    consumed += (circumference * slice.pct) / 100
-    svg.appendChild(arc)
-  }
-  const ringWrap = doc.createElement('div')
-  ringWrap.className = 'axia_ringwrap'
-  ringWrap.appendChild(svg as unknown as HTMLElement)
-  // 环心文字必须住在覆盖层里：覆盖层 inset:0 + flex 居中（见 CSS .axia_ringcenter），
-  // 直接挂 ringWrap 会被当成 flex 兄弟挤到环下方/外侧。
-  const ringCenter = doc.createElement('div')
-  ringCenter.className = 'axia_ringcenter'
-  const centerPct = doc.createElement('div')
-  centerPct.className = 'axia_ringpct'
-  centerPct.textContent = `${hitPct.toFixed(2)}%`
-  const centerSub = doc.createElement('div')
-  centerSub.className = 'axia_ringsub'
-  centerSub.textContent = '缓存命中'
-  ringCenter.appendChild(centerPct)
-  ringCenter.appendChild(centerSub)
-  ringWrap.appendChild(ringCenter)
-  body.appendChild(ringWrap)
-
-  const legend = doc.createElement('div')
-  legend.className = 'axia_legend'
-  const legendRow = (color: string, label: string, pct: number, tokens: number, hint: string): void => {
-    const item = doc.createElement('div')
-    item.className = 'axia_legenditem'
-    const line = doc.createElement('div')
-    line.className = 'axia_legendrow'
-    line.title = hint
-    const dot = doc.createElement('span')
-    dot.className = 'axia_legenddot'
-    dot.style.background = color
-    const lab = doc.createElement('span')
-    lab.className = 'axia_legendlab'
-    lab.textContent = label
-    const val = doc.createElement('span')
-    val.className = 'axia_legendval'
-    val.textContent = `${pct.toFixed(1)}%`
-    line.appendChild(dot)
-    line.appendChild(lab)
-    line.appendChild(val)
-    const sub = doc.createElement('div')
-    sub.className = 'axia_legendsub'
-    sub.textContent = compactTokens(tokens)
-    item.appendChild(line)
-    item.appendChild(sub)
-    legend.appendChild(item)
-  }
-  legendRow('#22c55e', '缓存输入', pctOf(readTokens), readTokens, '命中缓存、按缓存价计费的输入 token')
-  legendRow('#a855f7', '未缓存输入', pctOf(missTokens), missTokens, '未命中缓存的输入 token（按未命中价计费）')
-  legendRow('#3b82f6', '输出', pctOf(outputTokens), outputTokens, '模型生成的输出 token')
-  body.appendChild(legend)
-  second.appendChild(body)
-  put(second)
-}
+  
 
 /* ── 汇率：把「元」与「美元」统一成条目计费币种 ─────────────────────────
    来源必须可核实：open.er-api.com（返回 rates.CNY 与 time_last_update_utc）。
