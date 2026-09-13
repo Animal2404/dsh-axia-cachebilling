@@ -446,54 +446,8 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
     return parts.join(' + ')
   }
 
-  const panel = doc.createElement('div')
-  panel.className = 'axia_panel'
-  const head = doc.createElement('div')
-  head.className = 'axia_panelhead'
-  head.textContent = '账单统计'
-  panel.appendChild(head)
-
-  const grid = doc.createElement('div')
-  grid.className = 'axia_tiles'
-  const tile = (label: string, value: string, hint: string): void => {
-    const box = doc.createElement('div')
-    box.className = 'axia_tile'
-    box.title = hint
-    const lab = doc.createElement('div')
-    lab.className = 'axia_tilelab'
-    lab.textContent = label
-    const val = doc.createElement('div')
-    val.className = 'axia_tileval'
-    val.textContent = value
-    box.appendChild(lab)
-    box.appendChild(val)
-    grid.appendChild(box)
-  }
-  const sessionCny = num(view.sessionCacheHitCost) + num(view.sessionMissCost) + num(view.sessionOutputCost)
-  const sessionUsd = num(view.sessionCacheHitCostUsd) + num(view.sessionMissCostUsd) + num(view.sessionOutputCostUsd)
-  const turnCny = num(view.turnHitCost) + num(view.turnMissCost) + num(view.turnOutputCost)
-  const turnUsd = num(view.turnHitCostUsd) + num(view.turnMissCostUsd) + num(view.turnOutputCostUsd)
-  // 轮次 = 会话里的轮序号（底部状态栏「N 轮」同一口径）；步数 = 有 usages 的调用次数（状态栏「M 步」）。
-  // 上一版把 sessionRounds 标成「轮次」是错的（它数的是步），标签不能撒谎。
-  tile('轮次', String(num(view.turn)), '本会话进行到第几轮（与底部状态栏「N 轮」一致）')
-  tile('步数', String(num(view.sessionRounds)), '本会话产生过用量的 API 调用次数（状态栏「M 步」）')
-  tile('本会话', money(sessionCny, sessionUsd), '整个会话累计费用')
-  tile('当前轮', money(turnCny, turnUsd), '本轮所有 API 调用的合计')
-  tile(
-    '当前步',
-    money(
-      num(view.cost) + num(view.missCost) + num(view.outputCost),
-      num(view.costUsd) + num(view.missCostUsd) + num(view.outputCostUsd),
-    ),
-    '这一次 API 调用的费用',
-  )
-  tile('缓存命中', money(view.sessionCacheHitCost, view.sessionCacheHitCostUsd), '本会话缓存命中部分的费用')
-  tile('未命中', money(view.sessionMissCost, view.sessionMissCostUsd), '本会话未命中输入（含缓存写入）的费用')
-  tile('输出', money(view.sessionOutputCost, view.sessionOutputCostUsd), '本会话输出 token 的费用')
-  tile('缓存失效', `${num(view.sessionFullMissSteps)} 次`, '有输入但缓存完全没命中的步数')
-  panel.appendChild(grid)
-  put(panel)
-
+  // 「账单统计」数值卡片面板已按用户要求删除（2026-09-13）：那是我按参考图样式硬凑的账单分解，
+  // 用户要的是真正的「上下文统计」功能（工具调用/图片/注入/压缩/剪枝），不是这张表。下面是 Token 构成环。
   const inputTokens = num(view.sessionInputTokens)
   const readTokens = Math.min(num(view.sessionCacheReadTokens), inputTokens)
   const outputTokens = num(view.sessionOutputTokens)
