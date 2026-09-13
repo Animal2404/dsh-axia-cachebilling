@@ -19,6 +19,18 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      # 构建产物另存为可下载 artifact（Actions 运行页直接下载，本地无需构建）
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsh-axia-cachebilling-0.6.3
+          path: |
+            lib/
+            package.json
+            cordis.patch.yml
+            rates.yml
+            price-catalog.json
+          if-no-files-found: error
+          retention-days: 30
       # 云端构建产物回写：只在 main 的 push 上跑，构建结果与仓库里的 lib/ 不同就提交回去，
       # 这样正常流程只需要改 src/ 并 push —— 产物由 Actions 生成，维护者不用在本地构建。
       # 提交信息带 [skip ci]，避免自触发死循环。
