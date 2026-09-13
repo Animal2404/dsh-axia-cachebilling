@@ -14,6 +14,9 @@ A DSH web plugin (host half + browser half) that attaches itself to **DSH's own 
 | **Context statistics** | Eight counters taken from **real session-log events**: turns, steps, tool calls, images, prunes, injections, compactions (+ estimated cost). Counted, never estimated |
 | **Token statistics** | **Total tokens** plus cache-read / uncached-input / output rows with percentages and absolute amounts |
 
+![The bill pinned inside the context popover](docs/screenshots/02-popover.png)
+
+
 Money handling:
 
 - **Automatic currency unification** — CNY and USD are converted into the **billing currency of the current entry** using a live rate (`open.er-api.com`, cached locally, graceful fallback; if no rate is available it falls back to listing both instead of guessing);
@@ -21,6 +24,9 @@ Money handling:
 - Third-party relays are billed too, matched through the price catalog.
 
 ## Settings page
+
+![The settings page](docs/screenshots/01-settings.png)
+
 
 - Pick provider / model from **DSH's own configured list**; fetch a provider's model list with one click;
 - **Price catalog** covering Open Code / Command Code / GLM / Kimi / MiniMax / MiMo: new entries or edited models auto-fill prices, and you can refresh on demand;
