@@ -370,6 +370,16 @@ interface CacheBillingView {
     cache: number
     fullMiss: number
   } | null
+  /** 上下文计数器（宿主按会话事件流计数）；缺失时「上下文统计」面板整格显示「—」 */
+  ctx?: {
+    turns?: number
+    steps?: number
+    tools?: number
+    images?: number
+    injections?: number
+    compactions?: number
+    prunes?: number
+  }
 }
 
 /** 小节标题：微发光货币图标 + 标题层级。 */
@@ -428,7 +438,80 @@ function compactTokens(value: number): string {
 }
 
 /**
- * 参考图版式的两块面板：①「账单统计」2×3 数值卡片网格；②「Token 统计」环形图 + 图例 + 环心命中率。
+ * 「上下文统计」数值卡片网格（2×4）：轮次 / 步数 / 工具调用 / 图片 / 预估费用 / 注入 / 压缩 / 剪枝。
+ *
+ * 数据全部来自宿主投影的事件计数器（src/index.ts 的 countContext），是会话日志里真实事件的数量，
+ * 客户端不做任何折算、不补零：宿主没上报（view.ctx 缺失，例如旧构建）时整格显示「—」，绝不用别的数字凑。
+ * 不加进场动画是刻意的：计数器随事件流重绘，动效会变成持续闪烁（高频更新的数字不做入场动画）。
+ */
+function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view: CacheBillingView): void {
+  const ctx = view.ctx
+  const num = (value: unknown): number | null => (Number.isFinite(value) ? (value as number) : null)
+  /** 计数文本：拿不到就是「—」——0 和「没有这项数据」是两件事，不能混。 */
+  const count = (value: unknown): string => {
+    const v = num(value)
+    return v === null ? '—' : String(Math.round(v))
+  }
+
+  const panel = doc.createElement('div')
+  panel.className = 'axia_panel'
+  const head = doc.createElement('div')
+  head.className = 'axia_panelhead'
+  head.textContent = '上下文统计'
+  panel.appendChild(head)
+
+  const grid = doc.createElement('div')
+  grid.className = 'axia_tiles'
+  const tile = (label: string, value: string, hint: string): void => {
+    const box = doc.createElement('div')
+    box.className = 'axia_tile'
+    box.title = hint
+    const lab = doc.createElement('div')
+    lab.className = 'axia_tilelab'
+    lab.textContent = label
+    const val = doc.createElement('div')
+    val.className = 'axia_tileval'
+    val.textContent = value
+    box.appendChild(lab)
+    box.appendChild(val)
+    grid.appendChild(box)
+  }
+
+  /** 预估费用：本会话三笔按币种分开合计（与上方「本会话」卡片同一口径），缺任一字段就当拿不到。 */
+  const sum3 = (a: unknown, b: unknown, c: unknown): number | null => {
+    const parts = [num(a), num(b), num(c)]
+    if (parts.some((v) => v === null)) return null
+    return (parts as number[]).reduce((x, y) => x + y, 0)
+  }
+  const cny = sum3(view.sessionCacheHitCost, view.sessionMissCost, view.sessionOutputCost)
+  const usd = sum3(view.sessionCacheHitCostUsd, view.sessionMissCostUsd, view.sessionOutputCostUsd)
+  let costText = '—'
+  if (cny !== null && usd !== null) {
+    const parts: string[] = []
+    if (cny > 0 || usd <= 0) parts.push(`¥${formatAmount(cny)}`)
+    if (usd > 0) parts.push(`$${formatAmount(usd)}`)
+    costText = parts.join('+')
+  }
+
+  tile('轮次', count(ctx?.turns), '会话累计轮数：turn/start 事件数（一条用户消息开启一轮）')
+  tile('步数', count(ctx?.steps), '会话累计步数：step/start 事件数（每次请求模型算一步）')
+  tile('工具调用', count(ctx?.tools), '每次 tool/call 记一次：一次工具调用算一次，不看结果')
+  tile('图片', count(ctx?.images), '用户消息里的图片数：user/message 的 content 中 type=image 的 part 数')
+  tile('预估费用', costText, '本会话三笔合计（缓存命中＋未命中输入＋输出），元与美元分开合计')
+  tile(
+    '注入',
+    count(ctx?.injections),
+    '注入进会话的非用户消息数：agent/inbox/spliced 里 source.kind ≠ user（插件/父代理/子代理/目标/AGENTS.md 指令）',
+  )
+  tile('压缩', count(ctx?.compactions), '上下文压缩次数：compaction/start 事件数')
+  tile('剪枝', count(ctx?.prunes), '工具结果剪枝次数：compaction/prune 事件数')
+
+  panel.appendChild(grid)
+  put(panel)
+}
+
+/**
+ * 两块面板：①「上下文统计」2×4 数值卡片网格（真实事件计数）；②「Token 统计」环形图 + 图例 + 环心命中率。
  *
  * 不加进场动画是刻意的：账单每来一个 usage 事件就重绘一次，动效会变成持续闪烁（Emil 的规矩：
  * 高频更新的数字不要做入场动画）。环图只表达比例，不做插值补间，避免和重绘打架。
@@ -447,7 +530,10 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   }
 
   // 「账单统计」数值卡片面板已按用户要求删除（2026-09-13）：那是我按参考图样式硬凑的账单分解，
-  // 用户要的是真正的「上下文统计」功能（工具调用/图片/注入/压缩/剪枝），不是这张表。下面是 Token 构成环。
+  // 用户要的是真正的「上下文统计」功能（轮次/步数/工具调用/图片/预估费用/注入/压缩/剪枝），
+  // 所以这里换成真实事件计数的「上下文统计」面板；它不依赖 token 用量，故在下面的 early-return 之前渲染。
+  renderContextStats(doc, put, view)
+
   const inputTokens = num(view.sessionInputTokens)
   const readTokens = Math.min(num(view.sessionCacheReadTokens), inputTokens)
   const outputTokens = num(view.sessionOutputTokens)

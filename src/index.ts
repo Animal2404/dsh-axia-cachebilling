@@ -864,6 +864,127 @@ const isWriteMiss = (s: Sample): boolean => s.cacheWriteTokens > 0
 const isFullMiss = (s: Sample): boolean =>
   s.inputTokens + s.cacheReadTokens + s.cacheWriteTokens > 0 && s.cacheReadTokens === 0
 
+/**
+ * 上下文计数器：会话内累计，全部直接数事件流，重放可重建（不做任何估算，不读日志文件之外的来源）。
+ *
+ * 每项的判定口径与证据（2026-09-13 用 35 份真实会话日志 + DSH 安装目录的 SessionEventMap 实测核定）：
+ * - turns / steps：`turn/start` / `step/start` 事件数。事件表见 @deepseek-ai/dsh-agent-presets 的
+ *   SessionEventMap 声明（`'step/start': { turn: number; step: number }`），日志里每轮每步各一条。
+ * - tools：`tool/call` 事件数，一次调用记一次，不看结果（结果事件 `tool/result` 条数并不相等：实测
+ *   5819 次调用 / 5885 条结果——被中断或补发的调用没有配平的结果，故优先数调用侧）。
+ * - images：`user/message` 的 content 数组里 `type === 'image'` 的 part 数，part 形如
+ *   `{ type:'image', attachment:{ attachmentId:'sha256:…', mediaType, width, height, bytes, name } }`。
+ *   口径说明：同一批消息在 `agent/inbox/spliced` 的 inserted[] 里会再出现一次（实测 35 份日志里
+ *   569 条消息 id 两边都有），所以只数 `user/message` 一侧，避免双计；日志里只有附件引用没有像素，
+ *   故按 part 出现次数计（同一附件重复粘贴各记一次，1 个 part 恒等 1 张图，不按 attachmentId 去重）。
+ * - injections：`agent/inbox/spliced` 的 inserted[] 里 `source.kind !== 'user'` 的消息条数。这就是
+ *   DSH 语境里的「注入」：`Agent.inject(input: UserMessage)` 被官方注释定义为 “seed model-facing
+ *   context”（@deepseek-ai/dsh-agent 的 runtime-types.d.ts），入队落到 session 事件
+ *   `agent/inbox/spliced`；实测出现过的注入来源 kind：plugin / agent-message（父代理发来的消息）/
+ *   subagent-settled（子代理完成通知）/ goal（目标续跑）/ agent-instructions（AGENTS.md 工作区指令，
+ *   由 @deepseek-ai/dsh-agent-instructions 打标）。人类在输入框里打的字 kind === 'user'，不算注入。
+ *   另有 `system/message`（实测 107 条，全部来自 @deepseek-ai/dsh-system-prompt，是系统提示的组装与
+ *   重发，不是消息流注入）不计入本项。
+ * - compactions：`compaction/start` 事件数——每次压缩开始记一次（`compaction/end` 只是收尾括号，失败
+ *   路径可能只有 start 没有 summary，故数动作不数收尾）。
+ * - prunes：`compaction/prune` 事件数，工具结果剪枝（@deepseek-ai/dsh-compaction-tool-result-pruner
+ *   发出的 shadow-price 事件）；实测 67 个剪枝事件各 shadow 1 个 seq（shadowedSeqs 长度恒为 1），
+ *   所以「剪枝事件数」与「被剪结果数」在这批数据里同值，取事件数。
+ *
+ * 注意：以上每一项在真实会话日志里都拿得到，没有一项需要显示「—」；但只要宿主没上报（view.ctx 缺失），
+ * 客户端就显示「—」，绝不用别的数字凑。
+ */
+interface ContextCounters {
+  /** turn/start 事件数 */
+  turns: number
+  /** step/start 事件数 */
+  steps: number
+  /** tool/call 事件数 */
+  tools: number
+  /** user/message 里的 image part 数 */
+  images: number
+  /** agent/inbox/spliced 里 source.kind ≠ 'user' 的注入消息数 */
+  injections: number
+  /** compaction/start 事件数 */
+  compactions: number
+  /** compaction/prune 事件数 */
+  prunes: number
+}
+
+/** 全零初值。 */
+const ZERO_CONTEXT: ContextCounters = {
+  turns: 0,
+  steps: 0,
+  tools: 0,
+  images: 0,
+  injections: 0,
+  compactions: 0,
+  prunes: 0,
+}
+
+/** 数 content[] 里的图片 part（没有 content 或没有图片都返回 0）。 */
+function countImageParts(content: unknown): number {
+  if (!Array.isArray(content)) return 0
+  let n = 0
+  for (const part of content) if ((part as { type?: unknown })?.type === 'image') n += 1
+  return n
+}
+
+/** 数 inserted[] 里的注入消息：source.kind 是字符串且不是 'user' 才算，kind 缺失不猜。 */
+function countInjected(inserted: unknown): number {
+  if (!Array.isArray(inserted)) return 0
+  let n = 0
+  for (const message of inserted) {
+    const kind = (message as { source?: { kind?: unknown } })?.source?.kind
+    if (typeof kind === 'string' && kind !== 'user') n += 1
+  }
+  return n
+}
+
+/**
+ * 计数器的唯一入口：命中本单元关心的事件就返回新对象，否则返回同一引用。
+ * apply 以 Object.is 把关变更流（见 apply 里的注释），所以「没变化就同引用」是硬要求。
+ */
+function countContext(ctx: ContextCounters, event: any): ContextCounters {
+  switch (event?.type) {
+    case 'turn/start':
+      return { ...ctx, turns: ctx.turns + 1 }
+    case 'step/start':
+      return { ...ctx, steps: ctx.steps + 1 }
+    case 'tool/call':
+      return { ...ctx, tools: ctx.tools + 1 }
+    case 'compaction/start':
+      return { ...ctx, compactions: ctx.compactions + 1 }
+    case 'compaction/prune':
+      return { ...ctx, prunes: ctx.prunes + 1 }
+    case 'user/message': {
+      const images = countImageParts(event.data?.content)
+      return images > 0 ? { ...ctx, images: ctx.images + images } : ctx
+    }
+    case 'agent/inbox/spliced': {
+      const injected = countInjected(event.data?.inserted)
+      return injected > 0 ? { ...ctx, injections: ctx.injections + injected } : ctx
+    }
+    default:
+      return ctx
+  }
+}
+
+/** 视图出口归一化：行里缺字段（版本升级期兜底）也只当 0，绝不让 undefined 漏进客户端。 */
+function normalizeContext(ctx: ContextCounters | undefined): ContextCounters {
+  const pick = (value: unknown): number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : 0
+  return {
+    turns: pick(ctx?.turns),
+    steps: pick(ctx?.steps),
+    tools: pick(ctx?.tools),
+    images: pick(ctx?.images),
+    injections: pick(ctx?.injections),
+    compactions: pick(ctx?.compactions),
+    prunes: pick(ctx?.prunes),
+  }
+}
+
 interface ProjectionState {
   /** 当前请求的 provider，request/header 跟踪，message.source 校正 */
   provider: string | null
@@ -888,6 +1009,8 @@ interface ProjectionState {
     steps: Array<{ n: number; t: number; s: number; c: number; mi?: number }>
     marks: Record<string, string>
   } | null
+  /** 上下文计数器（轮次/步数/工具调用/图片/注入/压缩/剪枝），口径见 ContextCounters */
+  ctx: ContextCounters
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -898,7 +1021,10 @@ export function apply(ctx: any, _config: any): void {
     projectionCtx.sessionProjections.register({
       key: 'cacheBilling',
       // v9：history/prevGen 步目补 hc（该步缓存命中金额，平均缓存曲线的数据底座）——旧持久化行作废重放，重放后所有步自动补上
-      stateVersion: 9,
+      // v10：state 新增 ctx 上下文计数器。计数器必须精确，而旧持久化行（ver 9）里没有 ctx——
+      // 若让它继续可用，stateSchema 只能给默认 0，计数器就会从检查点 seq 起算、漏掉前段事件（静默偏小）。
+      // 所以照 v9 的老规矩换代：ver 不匹配即整条行作废、从 seq 0 全量重放，重放后计数精确。
+      stateVersion: 10,
       stateSchema: z.object({
         provider: z.string().nullable(),
         model: z.string().nullable(),
@@ -982,6 +1108,16 @@ export function apply(ctx: any, _config: any): void {
             marks: z.record(z.string(), z.string()),
           })
           .nullable(),
+        // 上下文计数器：七项都是整数计数，schema 缺任何一项都会在恢复时丢掉整段计数，故逐项声明
+        ctx: z.object({
+          turns: z.number().int().nonnegative(),
+          steps: z.number().int().nonnegative(),
+          tools: z.number().int().nonnegative(),
+          images: z.number().int().nonnegative(),
+          injections: z.number().int().nonnegative(),
+          compactions: z.number().int().nonnegative(),
+          prunes: z.number().int().nonnegative(),
+        }),
       }),
       init: (): ProjectionState => ({
         provider: null,
@@ -1004,9 +1140,17 @@ export function apply(ctx: any, _config: any): void {
         history: [],
         gen: 0,
         prevGen: null,
+        ctx: { ...ZERO_CONTEXT },
       }),
 
       apply: (state: ProjectionState, event: any): ProjectionState => {
+        // ── 上下文计数器：先记账再走本单元原有路径 ──
+        // 只在这里换一次 state 引用（计数没变时 countContext 返回同一引用，state 原样不动），
+        // 于是下面所有分支的 `return { ...state, … }` 与末尾的 `return state` 都自动带上新计数，
+        // 计数事件（tool/call 等）即便与账单无关也能推动变更流。
+        const counted = countContext(state.ctx, event)
+        if (counted !== state.ctx) state = { ...state, ctx: counted }
+
         // 跟踪当前请求的 provider 与 model
         if (event.type === 'request/header') {
           const cfg = event.data?.header?.config
@@ -1218,6 +1362,16 @@ export function apply(ctx: any, _config: any): void {
       wire: {
         viewSchema: z.object({
           available: z.boolean(),
+          /** 上下文计数器（轮次/步数/工具调用/图片/注入/压缩/剪枝），口径见 ContextCounters */
+          ctx: z.object({
+            turns: z.number().int().nonnegative(),
+            steps: z.number().int().nonnegative(),
+            tools: z.number().int().nonnegative(),
+            images: z.number().int().nonnegative(),
+            injections: z.number().int().nonnegative(),
+            compactions: z.number().int().nonnegative(),
+            prunes: z.number().int().nonnegative(),
+          }),
           /** 缓存命中部分花费 */
           cost: z.number().nonnegative(),
           /** 未命中输入含缓存写入花费 */
@@ -1314,6 +1468,7 @@ export function apply(ctx: any, _config: any): void {
           if (s === null) {
             return {
               available: false,
+              ctx: normalizeContext(state.ctx),
               cost: 0,
               missCost: 0,
               outputCost: 0,
@@ -1383,6 +1538,7 @@ export function apply(ctx: any, _config: any): void {
           const fullMiss = round9((totalInput * row.miss) / 1e6)
           return {
             available: totalInput > 0 || s.outputTokens > 0,
+            ctx: normalizeContext(state.ctx),
             cost: rowCurrency === 'USD' ? 0 : cost,
             missCost: rowCurrency === 'USD' ? 0 : missCost,
             outputCost: rowCurrency === 'USD' ? 0 : outputCost,
