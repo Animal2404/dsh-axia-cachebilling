@@ -179,7 +179,7 @@ const CSS = `
 }
 
 /* 芯片明细行 */
-.axia_chips { display: flex; flex-wrap: wrap; gap: calc(2px * var(--axia-fs,1)) calc(10px * var(--axia-fs,1)); }
+.axia_chips { display: grid; gap: calc(4px * var(--axia-fs,1)); grid-template-columns: repeat(3, minmax(0,1fr)); }
 .axia_chip {
   align-items: center;
   display: inline-flex;
@@ -287,6 +287,41 @@ function formatAmount(amount: number): string {
   }
   const value = sig * Math.pow(10, exp)
   return value >= 0.01 ? value.toFixed(2) : value.toFixed(-exp)
+}
+
+/**
+ * 统一币种换算（全渲染器唯一入口）：把同一笔钱的元部分与美元部分合成一个数字。
+ *
+ * - 方向由 view.currency（当前条目的计费币种）决定，绝不写死：USD 会话 → cny / 汇率 折进美元；
+ *   CNY 会话 → usd * 汇率 折进元。汇率只认模块级 fxState（ensureFx 从 open.er-api.com 取，见下）。
+ * - 拿不到汇率（keyless 首帧 / 离线且无缓存）→ unify 为 false，退回“两笔分列”的降级写法，
+ *   调用方在 title 里说明原因（fxNote）；宁可慢一帧也不瞎算。
+ */
+interface UnifiedMoney {
+  /** 换算成功：单一币种符号 + 单一数字，直接可用 */
+  unified: boolean
+  symbol: '$' | '¥'
+  /** 无数字的纯文本形式：'1.04' / '2.65'（unified 时=折算后总额，否则=元的部分） */
+  amount: string
+  /** 纯文本形式：'$1.04' 或降级时的 '¥1.04 + $2.65' */
+  text: string
+}
+
+function formatUnifiedMoney(cny: number, usd: number, currency: string | undefined): UnifiedMoney {
+  const yuan = Number.isFinite(cny) ? cny : 0
+  const dollar = Number.isFinite(usd) ? usd : 0
+  const toUsd = currency === 'USD'
+  const fx = fxState
+  if (fx !== null && fx.rate > 0) {
+    const total = toUsd ? dollar + yuan / fx.rate : yuan + dollar * fx.rate
+    const symbol = toUsd ? '$' : '¥'
+    const amount = formatAmount(total)
+    return { unified: true, symbol, amount, text: `${symbol}${amount}` }
+  }
+  const parts: string[] = []
+  if (yuan > 0 || dollar <= 0) parts.push(`¥${formatAmount(yuan)}`)
+  if (dollar > 0) parts.push(`$${formatAmount(dollar)}`)
+  return { unified: false, symbol: '¥', amount: formatAmount(yuan), text: parts.join(' + ') }
 }
 
 const TIER_LABEL: Record<string, string> = {
@@ -442,9 +477,10 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
 
   const grid = doc.createElement('div')
   grid.className = 'axia_tiles'
-  const tile = (label: string, value: string, hint: string): void => {
+  /** 一格 = 标签在左、数值在右；extraClass 传 'is-wide' 时跨两列（CSS 里 grid-column: span 2）。 */
+  const tile = (label: string, value: string, hint: string, extraClass?: string): void => {
     const box = doc.createElement('div')
-    box.className = 'axia_tile'
+    box.className = extraClass ? `axia_tile ${extraClass}` : 'axia_tile'
     box.title = hint
     const lab = doc.createElement('div')
     lab.className = 'axia_tilelab'
@@ -457,7 +493,8 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
     grid.appendChild(box)
   }
 
-  /** 预估费用：本会话三笔按币种分开合计（与上方「本会话」卡片同一口径），缺任一字段就当拿不到。 */
+  /** 预估费用：本会话三笔（缓存命中＋未命中输入＋输出）× 两种币种字段，缺任一字段就当拿不到。
+   *  币种统一走模块级 formatUnifiedMoney（与 renderBill 同一函数、同一汇率），所以这里只会出现一种符号。 */
   const sum3 = (a: unknown, b: unknown, c: unknown): number | null => {
     const parts = [num(a), num(b), num(c)]
     if (parts.some((v) => v === null)) return null
@@ -467,24 +504,25 @@ function renderContextStats(doc: Document, put: (el: HTMLElement) => void, view:
   const usd = sum3(view.sessionCacheHitCostUsd, view.sessionMissCostUsd, view.sessionOutputCostUsd)
   let costText = '—'
   if (cny !== null && usd !== null) {
-    const parts: string[] = []
-    if (cny > 0 || usd <= 0) parts.push(`¥${formatAmount(cny)}`)
-    if (usd > 0) parts.push(`$${formatAmount(usd)}`)
-    costText = parts.join('+')
+    ensureFx()
+    costText = formatUnifiedMoney(cny, usd, view.currency).text
   }
 
+  // 8 格 = 3 + 3 + 2：预估费用占最后一行的后两格（跨列），最后一格留给剪枝——正好填满，不留空洞。
   tile('轮次', count(ctx?.turns), '会话累计轮数：turn/start 事件数（一条用户消息开启一轮）')
   tile('步数', count(ctx?.steps), '会话累计步数：step/start 事件数（每次请求模型算一步）')
   tile('工具调用', count(ctx?.tools), '每次 tool/call 记一次：一次工具调用算一次，不看结果')
   tile('图片', count(ctx?.images), '用户消息里的图片数：user/message 的 content 中 type=image 的 part 数')
-  tile('预估费用', costText, '本会话三笔合计（缓存命中＋未命中输入＋输出），元与美元分开合计')
-  tile(
-    '注入',
-    count(ctx?.injections),
-    '注入进会话的非用户消息数：agent/inbox/spliced 里 source.kind ≠ user（插件/父代理/子代理/目标/AGENTS.md 指令）',
-  )
-  tile('压缩', count(ctx?.compactions), '上下文压缩次数：compaction/start 事件数')
   tile('剪枝', count(ctx?.prunes), '工具结果剪枝次数：compaction/prune 事件数')
+
+  tile('注入', count(ctx?.injections), '注入进会话的非用户消息数：agent/inbox/spliced 里 source.kind ≠ user（插件/父代理/子代理/目标/AGENTS.md 指令）')
+  tile('压缩', count(ctx?.compactions), '上下文压缩次数：compaction/start 事件数')
+  tile(
+    '预估费用',
+    costText,
+    '本会话三笔合计（缓存命中＋未命中输入＋输出），已按当前会话币种统一折算成一种币种',
+    'is-wide',
+  )
 
   panel.appendChild(grid)
   put(panel)
@@ -565,14 +603,19 @@ function renderStats(doc: Document, put: (el: HTMLElement) => void, view: CacheB
   const ringWrap = doc.createElement('div')
   ringWrap.className = 'axia_ringwrap'
   ringWrap.appendChild(svg as unknown as HTMLElement)
+  // 环心文字必须住在覆盖层里：覆盖层 inset:0 + flex 居中（见 CSS .axia_ringcenter），
+  // 直接挂 ringWrap 会被当成 flex 兄弟挤到环下方/外侧。
+  const ringCenter = doc.createElement('div')
+  ringCenter.className = 'axia_ringcenter'
   const centerPct = doc.createElement('div')
   centerPct.className = 'axia_ringpct'
   centerPct.textContent = `${hitPct.toFixed(2)}%`
   const centerSub = doc.createElement('div')
   centerSub.className = 'axia_ringsub'
   centerSub.textContent = '缓存命中'
-  ringWrap.appendChild(centerPct)
-  ringWrap.appendChild(centerSub)
+  ringCenter.appendChild(centerPct)
+  ringCenter.appendChild(centerSub)
+  ringWrap.appendChild(ringCenter)
   body.appendChild(ringWrap)
 
   const legend = doc.createElement('div')
@@ -722,44 +765,22 @@ function renderBill(bill: HTMLElement): void {
   // 账表节标题：微发光货币图标 + 现代排版
   put(secHead(doc, '#f59e0b', '当前会话统计'))
 
-  /** 金额 → 统一到条目计费币种后的 HTML（符号与数字分离）。
-   *  汇率可用时只出现一种币种；拿不到汇率时退化为「元 + 美元」并列，并在 title 里说明原因。 */
+  /** 汇率说明（tooltip 共用）：金额按哪个汇率折的，一眼可见；没汇率时说明为什么分列。 */
   const fxNote = (): string => {
     const fx = fxState
     if (fx === null || !(fx.rate > 0)) return '未取到汇率，暂按币种分别列出'
     return `按 1 USD = ${fx.rate} CNY 折算（来源 ${fx.source}${fx.stale ? ' · 本地缓存' : ''}，更新于 ${fx.updatedAt}）`
   }
-  const money2 = (cny: number, usd: number): string => {
+  /** 金额 → 统一到条目计费币种后的纯文本（与「上下文统计」的预估费用同一个函数、同一汇率）。 */
+  const moneyPlain = (cny: number, usd: number): string => {
     ensureFx()
-    const fx = fxState
-    if (fx !== null && fx.rate > 0) {
-      const unifyToUsd = view.currency === 'USD'
-      const total = unifyToUsd ? usd + cny / fx.rate : cny + usd * fx.rate
-      const symbol = unifyToUsd ? '$' : '¥'
-      const note = fxNote()
-      return `<span class="axia_sym" title="${note}">${symbol}</span><span class="axia_num" title="${note}">${formatAmount(total)}</span>`
-    }
-    const parts: string[] = []
-    if (cny > 0 || usd <= 0) {
-      parts.push(`<span class="axia_sym">¥</span><span class="axia_num">${formatAmount(cny)}</span>`)
-    }
-    if (usd > 0) {
-      parts.push(`<span class="axia_sym">$</span><span class="axia_num">${formatAmount(usd)}</span>`)
-    }
-    return parts.join('<span class="axia_plus"> + </span>')
+    return formatUnifiedMoney(cny, usd, view.currency).text
   }
-  const moneyChip = (cny: number, usd: number): string => {
-    ensureFx()
-    const fx = fxState
-    if (fx !== null && fx.rate > 0) {
-      const unifyToUsd = view.currency === 'USD'
-      const total = unifyToUsd ? usd + cny / fx.rate : cny + usd * fx.rate
-      return `${unifyToUsd ? '$' : '¥'}${formatAmount(total)}`
-    }
-    const parts: string[] = []
-    if (cny > 0 || usd <= 0) parts.push(`¥${formatAmount(cny)}`)
-    if (usd > 0) parts.push(`$${formatAmount(usd)}`)
-    return parts.join(' + ')
+  /** 金额 → 统一币种后的 HTML（符号与数字分离，供大字号总额用）；换算逻辑全在 formatUnifiedMoney 里。 */
+  const moneyHtml = (cny: number, usd: number): string => {
+    const money = formatUnifiedMoney(cny, usd, view.currency)
+    const note = fxNote()
+    return `<span class="axia_sym" title="${note}">${money.symbol}</span><span class="axia_num" title="${note}">${money.amount}</span>`
   }
   const n = (value: unknown): number => (Number.isFinite(value) ? (value as number) : 0)
 
@@ -806,10 +827,10 @@ function renderBill(bill: HTMLElement): void {
 
   tableRow(
     '当前步',
-    money2(cost + missCost + outputCost, n(view.costUsd) + n(view.missCostUsd) + n(view.outputCostUsd)),
-    moneyChip(cost, n(view.costUsd)),
-    moneyChip(missCost, n(view.missCostUsd)),
-    moneyChip(outputCost, n(view.outputCostUsd)),
+    moneyHtml(cost + missCost + outputCost, n(view.costUsd) + n(view.missCostUsd) + n(view.outputCostUsd)),
+    moneyPlain(cost, n(view.costUsd)),
+    moneyPlain(missCost, n(view.missCostUsd)),
+    moneyPlain(outputCost, n(view.outputCostUsd)),
     false,
   )
 
@@ -822,10 +843,10 @@ function renderBill(bill: HTMLElement): void {
   const turnOutUsd = n(view.turnOutputCostUsd)
   tableRow(
     '当前轮',
-    money2(turnHit + turnMiss + turnOut, turnHitUsd + turnMissUsd + turnOutUsd),
-    moneyChip(turnHit, turnHitUsd),
-    moneyChip(turnMiss, turnMissUsd),
-    moneyChip(turnOut, turnOutUsd),
+    moneyHtml(turnHit + turnMiss + turnOut, turnHitUsd + turnMissUsd + turnOutUsd),
+    moneyPlain(turnHit, turnHitUsd),
+    moneyPlain(turnMiss, turnMissUsd),
+    moneyPlain(turnOut, turnOutUsd),
     false,
   )
 
@@ -838,12 +859,12 @@ function renderBill(bill: HTMLElement): void {
   const sessionOutUsd = n(view.sessionOutputCostUsd)
   tableRow(
     '本会话',
-    money2(sessionHit + sessionMiss + sessionOut, sessionHitUsd + sessionMissUsd + sessionOutUsd),
-    moneyChip(sessionHit, sessionHitUsd),
-    moneyChip(sessionMiss, sessionMissUsd),
-    moneyChip(sessionOut, sessionOutUsd),
+    moneyHtml(sessionHit + sessionMiss + sessionOut, sessionHitUsd + sessionMissUsd + sessionOutUsd),
+    moneyPlain(sessionHit, sessionHitUsd),
+    moneyPlain(sessionMiss, sessionMissUsd),
+    moneyPlain(sessionOut, sessionOutUsd),
     true,
-  )
+  )
 
   renderStats(doc, put, view)
   renderDetails(doc, put, view)
